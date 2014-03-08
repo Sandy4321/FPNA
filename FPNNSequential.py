@@ -1,6 +1,25 @@
 #FPNNSequential.py
 #------------------------------------------------------------------------------
 class Link():
+  '''
+  This class defines a link.  It is an object that connects nodes together.
+  Nodes contain lists of links and they manage the connections between links
+  and activators.
+  Functions:
+  -connectAsPred() ret: None
+  -connectAsSucc() ret: None
+  -read() ret: self.output
+  -write() ret: None
+  Internal Variables:
+  -(int, float): W
+  -(int, float): T
+  -Node: pred
+  -Node: succ
+  -(int, float): output
+  -bool: inReady
+  -bool: outReady
+  '''
+  #----------------------------------------------------------------------------  
   def __init__(self, W, T):
     '''
     W: Weight for affine transform
@@ -80,6 +99,11 @@ class Link():
     self.inReady = False
     self.outReady = True
     self.output = self.W*x + self.T
+    return
+
+#------------------------------------------------------------------------------
+class Activator():
+  def __init__(self):
     return
 
 #------------------------------------------------------------------------------

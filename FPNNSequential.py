@@ -1,4 +1,6 @@
 #FPNNSequential.py
+import math
+
 #------------------------------------------------------------------------------
 class Link():
   '''
@@ -103,13 +105,167 @@ class Link():
 
 #------------------------------------------------------------------------------
 class Activator():
-  def __init__(self):
+  '''
+  This is an activator.  Nodes use activators to compute outputs.  Since many
+  (most) Nodes will have the same type of activator, defining it as a
+  seperate class makes things a little simpler.
+  Functions:
+  -iterator(), ret: defined by the iteration function self.i
+  -activate(), ret: defined by the activation function self.f
+  Internal Variables:
+  '''
+  #----------------------------------------------------------------------------  
+  def __init__(self, i, f):
+    '''
+    i: The iteration function
+    f: The final output function
+    '''
+    assert hasattr(i, '__call__'), 'i must be a function'
+    assert hasattr(f, '__call__'), 'f must be a function'
+    self.i = i
+    self.f = f
     return
+
+  #----------------------------------------------------------------------------  
+  def iterator(self, x):
+    '''
+    Calls the iterator function i on x and returns i's return.
+    No error handling happens here.
+    '''
+    return self.i(x)
+
+  #----------------------------------------------------------------------------  
+  def activate(self, x):
+    '''
+    Calls the activation function f on x and returns f's return.
+    No error handling happens here.
+    '''
+    return self.f(x)
 
 #------------------------------------------------------------------------------
 class Node():
-  def __init__(self):
+  '''
+  Nodes are connected to numerous links, and contain an activator.
+  '''
+  #----------------------------------------------------------------------------  
+  def __init__(self, activator, succ = (None,)): 
+    assert isinstance(activator, Activator), 'activator must be an Activator'
+    assert isinstance(succ, tuple), 'succ must be a tuple'
+    assert (isinstance(succ[0], Link) or 
+            succ[0] is None), 'succ must contain Links'
+
+    self.activator = activator
+    self.succ = succ
+
     return
+
+
+#------------------------------------------------------------------------------
+class InputNode(Node):
+  '''
+  An input node
+  '''
+  def __init__(self, activator, c = 0, succ = (None,), ):
+    '''
+    activator: The activator class contained by this node
+    c: The number of inputs
+    succ: A tuple of successors, this defines it's connections
+    '''
+    Node.__init__(self, activator = activator, succ = succ)
+    assert isinstance(c, int) and c >= 0, 'c must be an int >= 0'
+    self.c = c
+    return
+
+#------------------------------------------------------------------------------
+class HiddenNode(Node):
+  '''
+  A hidden node
+  '''
+  def __init__(self, activator, pred = (None,), succ = (None,), 
+               vLinks = ((None, None),), theta = 0, a = 1):
+    assert isinstance(pred, tuple), 'pred must be a tuple'
+    assert (isinstance(pred[0], Link) or 
+            pred[0] is None), 'pred must contain Links'
+
+    assert isinstance(vLinks, tuple), 'vLinks must be a tuple of tuples'
+    assert isinstance(vLinks[0], tuple), 'vLinks must be a tuple of tuples'
+    assert (isinstance(vLinks[0][0], Link) or 
+            vLinks[0][0] is None), 'vLinks must contain Links'
+
+    assert isinstance(theta, (int, float)), 'theta must be a number'
+    assert isinstance(a, int) and a > 0, 'a must be a number > 0'
+
+    Node.__init__(self, activator, succ)
+
+    self.pred = pred
+    self.vLinks = vLinks
+    self.a = a
+    self.theta = theta
+
+    self.x = 0
+    self.c = 0
+    return
+
+#------------------------------------------------------------------------------
+class OutputNode(Node):
+  '''
+  An output node
+  '''
+  def __init__(self, activator, pred = (None,), succ = (None,), 
+               theta = 0, a = 1):
+    assert isinstance(pred, tuple), 'pred must be a tuple'
+    assert (isinstance(pred[0], Link) or 
+            pred[0] is None), 'pred must contain Links'
+
+    assert isinstance(theta, (int, float)), 'theta must be a number'
+    assert isinstance(a, int) and a > 0, 'a must be a number > 0'
+    
+    Node.__init__(self, activator, succ)
+    self.pred = pred
+    self.a = a
+    self.theta = theta
+
+    self.x = 0
+    self.c = 0
+
+    return
+
+
 
 #program entry
 #==============================================================================
+def i(x, xp):
+  return x + xp
+
+def f(x):
+  return math.tanh(x)
+
+def f5(x):
+  return x
+
+n1n3 = Link(3, 4)
+n2n3 = Link(6, 5)
+n2n4 = Link(8, 6)
+n3n4 = Link(12, 7)
+n3n5 = Link(15, 8)
+n4n5 = Link(20, 9)
+n5n3 = Link(15, 8)
+A = Activator(i, f)
+A5 = Activator(i, f5)
+
+c1 = 2
+c2 = 1
+
+n1 = InputNode(activator = A, succ = (n1n3,)) #input node
+n2 = InputNode(activator = A, succ = (n2n3, n2n4)) #input node
+
+n3 = HiddenNode(activator = A, pred = (n2n3, n5n3), vLinks = ((n1n3, n3n4),),
+          theta = 2.1, a = 3)
+n4 = HiddenNode(activator = A, pred = (n2n4, n3n4), succ = (n4n5,), theta = -1.9,
+          a = 2)
+n5 = OutputNode(activator = A5, pred = (n3n5, n4n5), theta = 0, a = 2)
+
+Ni = (n1, n2)
+N = (n3, n4, n5)
+E = (n1n3, n2n3, n2n4, n3n4, n3n5, n4n5, n5n3)
+

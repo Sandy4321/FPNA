@@ -145,10 +145,15 @@ class Activator():
 #------------------------------------------------------------------------------
 class Node():
   '''
-  Nodes are connected to numerous links, and contain an activator.
+  Nodes are connected to numerous links, and contain an activator.  This is a
+  base class for InputNode, HiddenNode, and OutputNode
   '''
   #----------------------------------------------------------------------------  
   def __init__(self, activator, succ = (None,)): 
+    '''
+    activator: The activator class contained by this node
+    succ: A tuple of successors.  It must be a tuple of Links
+    '''
     assert isinstance(activator, Activator), 'activator must be an Activator'
     assert isinstance(succ, tuple), 'succ must be a tuple'
     assert (isinstance(succ[0], Link) or 
@@ -183,6 +188,14 @@ class HiddenNode(Node):
   '''
   def __init__(self, activator, pred = (None,), succ = (None,), 
                vLinks = ((None, None),), theta = 0, a = 1):
+    '''
+    activator: The activator class contained by this node
+    pred: Tuple of predecessor Links
+    succ: Tuple of successor Links
+    vLinks: Tuple of tuples of Links that are configured as virtual links.
+    theta: Starting value for x
+    a: Number of iterations of activator's iteration function.
+    '''
     assert isinstance(pred, tuple), 'pred must be a tuple'
     assert (isinstance(pred[0], Link) or 
             pred[0] is None), 'pred must contain Links'
@@ -213,6 +226,13 @@ class OutputNode(Node):
   '''
   def __init__(self, activator, pred = (None,), succ = (None,), 
                theta = 0, a = 1):
+    '''
+    activator: The activator Class contained by this node.
+    pred: A tuple of predecessor links.
+    succ: A tuple of successor links.
+    theta: The initial value of x.
+    a: The number of times to apply the activator's iteration function.
+    '''
     assert isinstance(pred, tuple), 'pred must be a tuple'
     assert (isinstance(pred[0], Link) or 
             pred[0] is None), 'pred must contain Links'

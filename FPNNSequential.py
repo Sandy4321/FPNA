@@ -8,10 +8,9 @@ class Link():
   Nodes contain lists of links and they manage the connections between links
   and activators.
   Functions:
-  -connectAsPred() ret: None
-  -connectAsSucc() ret: None
-  -read() ret: self.output
-  -write() ret: None
+  -activate()
+  -connectToInput()
+  -connectToOutput()
   Internal Variables:
   -(float): W
   -(float): T
@@ -22,7 +21,7 @@ class Link():
   -bool: outReady
   '''
   #----------------------------------------------------------------------------  
-  def __init__(self, W, T):
+  def __init__(self, W, T, name = None):
     '''
     W: Weight for affine transform
     T: Weight for affine transform
@@ -33,12 +32,20 @@ class Link():
     '''
     assert isinstance(W, (float)), 'W must be a float'
     assert isinstance(T, (float)), 'T must be a float'
+    assert isinstance(name, str) or name == None, 'name must be a string'
     self.W = W
     self.T = T
     self.output = 0 #This is the output value.  It is read with read()
     self.inputNode = None #Predecessor node
     self.outputNode = None #Successor node
+    self.name = name
     return
+
+  #----------------------------------------------------------------------------  
+  def __str__(self):
+    return self.name
+  def __repr__(self):
+    return self.__str__()
 
   #----------------------------------------------------------------------------  
   def activate(self, x):
@@ -81,16 +88,24 @@ class Activator():
   Internal Variables:
   '''
   #----------------------------------------------------------------------------  
-  def __init__(self, i, f):
+  def __init__(self, i, f, name = None):
     '''
     i: The iteration function
     f: The final output function
     '''
     assert hasattr(i, '__call__'), 'i must be a function'
     assert hasattr(f, '__call__'), 'f must be a function'
+    assert isinstance(name, str) or name == None, 'name must be a string'
     self.i = i
     self.f = f
+    self.name = name
     return
+
+  #----------------------------------------------------------------------------  
+  def __str__(self):
+    return self.name
+  def __repr__(self):
+    return self.__str__()
 
   #----------------------------------------------------------------------------  
   def iterator(self, x):
@@ -114,7 +129,7 @@ class InputNode():
   An input node
   '''
   #----------------------------------------------------------------------------  
-  def __init__(self, activator, c = 0, succ = (None,), ):
+  def __init__(self, activator, c = 0, succ = (None,), name = None):
     '''
     activator: The activator class contained by this node
     c: The number of inputs
@@ -125,6 +140,7 @@ class InputNode():
     assert (isinstance(succ[0], Link) or 
             succ[0] is None), 'succ must contain Links'
 
+    assert isinstance(name, str) or name == None, 'name must be a string'
     self.activator = activator
     self.succ = succ
     for s in [s for s in self.succ if s != None]:
@@ -132,9 +148,15 @@ class InputNode():
 
     assert isinstance(c, int) and c >= 0, 'c must be an int >= 0'
     self.c = c
-
+    self.name = name
     return
 
+  #----------------------------------------------------------------------------  
+  def __str__(self):
+    return self.name
+  def __repr__(self):
+    return self.__str__()
+ 
 #------------------------------------------------------------------------------
 class HiddenNode():
   '''
@@ -142,7 +164,7 @@ class HiddenNode():
   '''
   #----------------------------------------------------------------------------  
   def __init__(self, activator, pred = (None,), succ = (None,), 
-               vLinks = ((None, None),), theta = 0, a = 1):
+               vLinks = ((None, None),), theta = 0, a = 1, name = None):
     '''
     activator: The activator class contained by this node
     pred: Tuple of predecessor Links
@@ -169,6 +191,8 @@ class HiddenNode():
 
     assert isinstance(theta, (float)), 'theta must be a float'
     assert isinstance(a, int) and a > 0, 'a must be a number > 0'
+    
+    assert isinstance(name, str) or name == None, 'name must be a string'
 
     self.succ = succ
     for s in [s for s in self.succ if s != None]:
@@ -178,14 +202,24 @@ class HiddenNode():
     for p in [p for p in self.pred if p != None]:
       p.connectToOutput(self)
 
-    self.activator = activator
     self.vLinks = vLinks
+    for vl in [vl for vl in self.vLinks if not None in vl]:
+      vl[0].connectToOutput(self)
+      vl[1].connectToInput(self)
+
+    self.activator = activator
     self.a = a
     self.theta = theta
-
-    self.x = 0
+    self.name = name
+    self.x = theta
     self.c = 0
     return
+
+  #----------------------------------------------------------------------------
+  def __str__(self):
+    return self.name
+  def __repr__(self):
+    return self.__str__()
 
 #------------------------------------------------------------------------------
 class OutputNode():
@@ -193,7 +227,7 @@ class OutputNode():
   An output node
   '''
   #----------------------------------------------------------------------------  
-  def __init__(self, activator, pred = (None,), theta = 0, a = 1):
+  def __init__(self, activator, pred = (None,), theta = 0, a = 1, name = None):
     '''
     activator: The activator Class contained by this node.
     pred: A tuple of predecessor links.
@@ -210,7 +244,7 @@ class OutputNode():
     assert isinstance(theta, (float)), 'theta must be a float'
     assert isinstance(a, int) and a > 0, 'a must be a number > 0'
     
-    
+    assert isinstance(name, str) or name == None, 'name must be a string'
 
     self.pred = pred
     for p in [p for p in self.pred if p != None]:
@@ -219,10 +253,17 @@ class OutputNode():
     self.a = a
     self.theta = theta
     self.activator = activator
-    self.x = 0
+    self.x = theta
     self.c = 0
+    self.name = name
 
     return
+
+  #----------------------------------------------------------------------------
+  def __str__(self):
+    return self.name
+  def __repr__(self):
+    return self.__str__()
 
 #------------------------------------------------------------------------------
 class Brain():
@@ -230,7 +271,7 @@ class Brain():
   The FPNN.  This class controls all of the nodes and links.
   '''
   #----------------------------------------------------------------------------  
-  def __init__(self, Ni = (None,), Nh = (None,), No = (None,)):
+  def __init__(self, Ni = (None,), Nh = (None,), No = (None,), name = None):
     '''
     Allowing Ni or No to remain None is illegal.  It is only there to
     demonstrate the form the input needs to be.
@@ -247,10 +288,13 @@ class Brain():
     assert (isinstance(Nh[0], HiddenNode) or 
             Nh[0] is None), 'Nh must contain HiddenNodes or (None,)'
 
+    assert isinstance(name, str) or name == None, 'name must be a string'
+    
     self.Ni = Ni
     self.Nh = Nh
     self.No = No
     self.L = []
+    self.name = name
     
     self.inputs = []
     
@@ -259,6 +303,12 @@ class Brain():
       self.inputs.append(nInputs)
     
     return
+
+  #----------------------------------------------------------------------------  
+  def __str__(self):
+    return self.name
+  def __repr__(self):
+    return self.__str__()
 
   #----------------------------------------------------------------------------  
   def activate(self, inputValues = [[]]):
@@ -273,13 +323,20 @@ class Brain():
           self.L.append((s, x))
       i += 1
 
+    print self.L
+
     while any(self.L):
       task = self.L.pop(0)
       link = task[0]
+      n = link.outputNode
       x = task[1]
       xp = link.activate(x)
-      print xp
-
+      if not isinstance(n, InputNode):
+        for vl in n.vLinks:
+          if link == vl[0]:
+            self.L.append((vl[1], xp))
+          
+      print self.L
     return
 
 #program entry
@@ -293,27 +350,28 @@ def f(x):
 def f5(x):
   return x
 
-n1n3 = Link(3.0, 4.0)
-n2n3 = Link(6.0, 5.0)
-n2n4 = Link(8.0, 6.0)
-n3n4 = Link(12.0, 7.0)
-n3n5 = Link(15.0, 8.0)
-n4n5 = Link(20.0, 9.0)
-n5n3 = Link(15.0, 8.0)
-A = Activator(i, f)
-A5 = Activator(i, f5)
+n1n3 = Link(3.0, 4.0, name = 'n1n3')
+n2n3 = Link(6.0, 5.0, name = 'n2n3')
+n2n4 = Link(8.0, 6.0, name = 'n2n4')
+n3n4 = Link(12.0, 7.0, name = 'n3n4')
+n3n5 = Link(15.0, 8.0, name = 'n3n5')
+n4n5 = Link(20.0, 9.0, name = 'n4n5')
+n5n3 = Link(15.0, 8.0, name = 'n5n3')
+A = Activator(i, f, name = 'A')
+A5 = Activator(i, f5, name = 'A5')
 
 c1 = 2
 c2 = 1
 
-n1 = InputNode(activator = A, c = 2, succ = (n1n3,)) #input node
-n2 = InputNode(activator = A, c = 1, succ = (n2n3, n2n4)) #input node
+n1 = InputNode(activator = A, c = 2, succ = (n1n3,), name = 'n1')
+n2 = InputNode(activator = A, c = 1, succ = (n2n3, n2n4), name = 'n2')
 
 n3 = HiddenNode(activator = A, pred = (n2n3, n5n3), vLinks = ((n1n3, n3n4),),
-          theta = 2.1, a = 3)
+          theta = 2.1, a = 3, name = 'n3')
 n4 = HiddenNode(activator = A, pred = (n2n4, n3n4), succ = (n4n5,), theta = -1.9,
-          a = 2)
-n5 = OutputNode(activator = A5, pred = (n3n5, n4n5), theta = 0.0, a = 2)
+          a = 2, name = 'n4')
+n5 = OutputNode(activator = A5, pred = (n3n5, n4n5), theta = 0.0, 
+                a = 2, name = 'n4')
 
 Ni = (n1, n2)
 Nh = (n3, n4)

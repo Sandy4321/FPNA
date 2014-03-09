@@ -61,6 +61,8 @@ class Link():
     '''
     assert isinstance(N, Node), 'N must be a Node'
     assert N != self.succ, 'Loopbacks are not allowed'
+    assert (self.pred == None or 
+            self.pred == N), 'Cannot connect to multiple nodes'
     self.pred = N
     return
 
@@ -73,6 +75,8 @@ class Link():
     '''
     assert isinstance(N, Node), 'N must be a Node'
     assert N != self.pred, 'Loopbacks are not allowed'
+    assert (self.succ == None or
+            self.succ == N), 'Cannot connect to multiple nodes'
     self.succ = N
     return
 
@@ -161,15 +165,17 @@ class Node():
 
     self.activator = activator
     self.succ = succ
+    for s in [s for s in self.succ if s != None]:
+      s.connectAsPred(self)
 
     return
-
 
 #------------------------------------------------------------------------------
 class InputNode(Node):
   '''
   An input node
   '''
+  #----------------------------------------------------------------------------  
   def __init__(self, activator, c = 0, succ = (None,), ):
     '''
     activator: The activator class contained by this node
@@ -186,6 +192,7 @@ class HiddenNode(Node):
   '''
   A hidden node
   '''
+  #----------------------------------------------------------------------------  
   def __init__(self, activator, pred = (None,), succ = (None,), 
                vLinks = ((None, None),), theta = 0, a = 1):
     '''
@@ -211,7 +218,14 @@ class HiddenNode(Node):
     Node.__init__(self, activator, succ)
 
     self.pred = pred
+    for p in [p for p in self.pred if p != None]:
+      p.connectAsSucc(self)
+
     self.vLinks = vLinks
+    for (p, s) in [vl for vl in self.vLinks if not None in vl]:
+      p.connectAsSucc(self)
+      s.connectAsPred(self)
+
     self.a = a
     self.theta = theta
 
@@ -224,6 +238,7 @@ class OutputNode(Node):
   '''
   An output node
   '''
+  #----------------------------------------------------------------------------  
   def __init__(self, activator, pred = (None,), succ = (None,), 
                theta = 0, a = 1):
     '''
@@ -242,6 +257,9 @@ class OutputNode(Node):
     
     Node.__init__(self, activator, succ)
     self.pred = pred
+    for p in [p for p in self.pred if p != None]:
+      p.connectAsSucc(self)
+
     self.a = a
     self.theta = theta
 
@@ -250,7 +268,63 @@ class OutputNode(Node):
 
     return
 
+#------------------------------------------------------------------------------
+class Brain():
+  '''
+  The FPNN.  This class controls all of the nodes and links.
+  '''
+  #----------------------------------------------------------------------------  
+  def __init__(self, Ni = (None,), Nh = (None,), No = (None,)):
+    '''
+    Allowing Ni or No to remain None is illegal.  It is only there to
+    demonstrate the form the input needs to be.
+    Ni: A tuple of InputNodes.
+    Nh: A tuple of HiddenNodes.
+    No: A tuple of OutputNodes
+    The should already be initialized properly in the Nodes.
+    '''
+    assert isinstance(Ni, tuple), 'Ni must be a tuple of InputNodes'
+    assert isinstance(Ni[0], InputNode), 'Ni must be a tuple of InputNodes'
+    assert isinstance(No, tuple), 'No must be a tuple of OutputNodes'
+    assert isinstance(No[0], OutputNode), 'No must be a tuple of OutputNodes'
+    assert isinstance(Nh, tuple), 'Nh must be a tuple'
+    assert (isinstance(Nh[0], HiddenNode) or 
+            Nh[0] is None), 'Nh must contain HiddenNodes or (None,)'
 
+    self.Ni = Ni
+    self.Nh = Nh
+    self.No = No
+    self.L = [None]
+    
+    self.inputs = []
+    
+    for n in Ni:
+      nInputs = [None]*n.c
+      self.inputs.append(nInputs)
+    
+    return
+
+  #----------------------------------------------------------------------------  
+  def activate(self, inputValues = [[]]):
+    if (not [len(x) for x in self.inputs] == [len(x) for x in inputValues]):
+      raise AssertionErorr('You must pass n.c values to each InputNode ' +
+                           'as nested lists.  [[n1.c ...], [n2.c ...], ...]')
+    #Creates the task list
+    i = 0
+    for n in Ni:
+      for s in n.succ:
+        for x in inputValues[i]:
+          self.L.append(s, x)
+      i += 1
+
+    while any(self.L):
+      task = self.L.pop(0)
+      link = task[0]
+      x = task[1]
+      link.write(x)
+      
+
+    return
 
 #program entry
 #==============================================================================
@@ -289,3 +363,4 @@ Ni = (n1, n2)
 N = (n3, n4, n5)
 E = (n1n3, n2n3, n2n4, n3n4, n3n5, n4n5, n5n3)
 
+#X = (x11, x12, x21) #inputs

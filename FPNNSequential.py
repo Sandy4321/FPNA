@@ -13,11 +13,11 @@ class Link():
   -read() ret: self.output
   -write() ret: None
   Internal Variables:
-  -(int, float): W
-  -(int, float): T
+  -(float): W
+  -(float): T
   -Node: pred
   -Node: succ
-  -(int, float): output
+  -(float): output
   -bool: inReady
   -bool: outReady
   '''
@@ -31,80 +31,42 @@ class Link():
     any time an assertion fails it is treated as a fatal error.  It may be
     useful to define custom errors instead of using assertions for everything.
     '''
-    assert isinstance(W, (int, float)), 'W must be a number'
-    assert isinstance(T, (int, float)), 'T must be a number'
+    assert isinstance(W, (float)), 'W must be a float'
+    assert isinstance(T, (float)), 'T must be a float'
     self.W = W
     self.T = T
     self.output = 0 #This is the output value.  It is read with read()
-
-    #The following values aren't really needed.  They are just helpful to
-    #ensure correct operation and ensure nothing is happening that shouldn't
-    self.pred = None #The predeccesor node
-    self.succ = None #The successor node
-
-    #outReady is a safety to prevent the same output being read multiple times.
-    #outReady is False at init, set to true after an input has been received,
-    #and set to false again after that output has been read.
-    self.outReady = False
-
-    #inReady is similar to outReady.  It is True at init, set to False when an
-    #input is received, and reset to True when that output is read.
-    self.inReady = True
+    self.inputNode = None #Predecessor node
+    self.outputNode = None #Successor node
     return
 
   #----------------------------------------------------------------------------  
-  def connectAsPred(self, N):
+  def activate(self, x):
     '''
-    The Node 'N' connects to this Link as a predecessor.  That is, the node N
-    will send it's outputs through this Link.  This link will only accept
-    an input from the node connected as it's predecessor.
+    Simply returns the value calculated by this link
+    x: A number
     '''
-    assert isinstance(N, Node), 'N must be a Node'
-    assert N != self.succ, 'Loopbacks are not allowed'
-    assert (self.pred == None or 
-            self.pred == N), 'Cannot connect to multiple nodes'
-    self.pred = N
+    assert isinstance(x, (float)), 'x must be a float'
+    return self.W*x + self.T
+
+  #----------------------------------------------------------------------------  
+  def connectToInput(self, N):
+    '''
+    Connects node N to connect to the input of this link.
+    '''
+    assert isinstance(N, (InputNode, HiddenNode)), 'N must be a node'
+    assert N != self.outputNode, 'Loopbacks are not allowed'
+    self.inputNode = N
     return
 
   #----------------------------------------------------------------------------  
-  def connectAsSucc(self, N):
+  def connectToOutput(self, N):
     '''
-    The Node 'N' connects to this Link as a successor.  That is, the node N
-    will receive inputs from this Link.  This link will only allow it's output
-    to be read by the node connected as it's successor.
+    Connects node N to the output of this link.
     '''
-    assert isinstance(N, Node), 'N must be a Node'
-    assert N != self.pred, 'Loopbacks are not allowed'
-    assert (self.succ == None or
-            self.succ == N), 'Cannot connect to multiple nodes'
-    self.succ = N
-    return
-
-  #----------------------------------------------------------------------------  
-  def read(self, N):
-    '''
-    This function 'reads' the output of the link.  It returns the output
-    '''
-    assert isinstance(N, Node), 'N must be a Node'
-    assert N == self.succ, 'N must be my successor'
-    assert self.outReady == True, 'This output is stale'
-    self.outReady = False
-    self.inReady = True
-    return self.output
-
-  #----------------------------------------------------------------------------  
-  def write(self, x, N):
-    '''
-    This function takes in an input x and applies it\'s affine transform.  It
-    then sets output: Wx + T
-    '''
-    assert isinstance(N, Node), 'N must be a Node'
-    assert isinstance(x, (int, float)), 'x must be a number'
-    assert N == self.pred, 'N must be my predecessor'
-    assert self.inReady == True, 'The output hasn\'t been read yet'
-    self.inReady = False
-    self.outReady = True
-    self.output = self.W*x + self.T
+    assert isinstance(N, (OutputNode, HiddenNode)), 'N must be a node'
+    assert N != self.inputNode, 'Loopbacks are not allowed'
+    self.outputNode = N
     return
 
 #------------------------------------------------------------------------------
@@ -147,31 +109,7 @@ class Activator():
     return self.f(x)
 
 #------------------------------------------------------------------------------
-class Node():
-  '''
-  Nodes are connected to numerous links, and contain an activator.  This is a
-  base class for InputNode, HiddenNode, and OutputNode
-  '''
-  #----------------------------------------------------------------------------  
-  def __init__(self, activator, succ = (None,)): 
-    '''
-    activator: The activator class contained by this node
-    succ: A tuple of successors.  It must be a tuple of Links
-    '''
-    assert isinstance(activator, Activator), 'activator must be an Activator'
-    assert isinstance(succ, tuple), 'succ must be a tuple'
-    assert (isinstance(succ[0], Link) or 
-            succ[0] is None), 'succ must contain Links'
-
-    self.activator = activator
-    self.succ = succ
-    for s in [s for s in self.succ if s != None]:
-      s.connectAsPred(self)
-
-    return
-
-#------------------------------------------------------------------------------
-class InputNode(Node):
+class InputNode():
   '''
   An input node
   '''
@@ -182,13 +120,23 @@ class InputNode(Node):
     c: The number of inputs
     succ: A tuple of successors, this defines it's connections
     '''
-    Node.__init__(self, activator = activator, succ = succ)
+    assert isinstance(activator, Activator), 'activator must be an Activator'
+    assert isinstance(succ, tuple), 'succ must be a tuple'
+    assert (isinstance(succ[0], Link) or 
+            succ[0] is None), 'succ must contain Links'
+
+    self.activator = activator
+    self.succ = succ
+    for s in [s for s in self.succ if s != None]:
+      s.connectToInput(self)
+
     assert isinstance(c, int) and c >= 0, 'c must be an int >= 0'
     self.c = c
+
     return
 
 #------------------------------------------------------------------------------
-class HiddenNode(Node):
+class HiddenNode():
   '''
   A hidden node
   '''
@@ -203,6 +151,13 @@ class HiddenNode(Node):
     theta: Starting value for x
     a: Number of iterations of activator's iteration function.
     '''
+
+    assert isinstance(activator, Activator), 'activator must be an Activator'
+    assert isinstance(succ, tuple), 'succ must be a tuple'
+    assert (isinstance(succ[0], Link) or 
+            succ[0] is None), 'succ must contain Links'
+
+
     assert isinstance(pred, tuple), 'pred must be a tuple'
     assert (isinstance(pred[0], Link) or 
             pred[0] is None), 'pred must contain Links'
@@ -212,20 +167,19 @@ class HiddenNode(Node):
     assert (isinstance(vLinks[0][0], Link) or 
             vLinks[0][0] is None), 'vLinks must contain Links'
 
-    assert isinstance(theta, (int, float)), 'theta must be a number'
+    assert isinstance(theta, (float)), 'theta must be a float'
     assert isinstance(a, int) and a > 0, 'a must be a number > 0'
 
-    Node.__init__(self, activator, succ)
+    self.succ = succ
+    for s in [s for s in self.succ if s != None]:
+      s.connectToInput(self)
 
     self.pred = pred
     for p in [p for p in self.pred if p != None]:
-      p.connectAsSucc(self)
+      p.connectToOutput(self)
 
+    self.activator = activator
     self.vLinks = vLinks
-    for (p, s) in [vl for vl in self.vLinks if not None in vl]:
-      p.connectAsSucc(self)
-      s.connectAsPred(self)
-
     self.a = a
     self.theta = theta
 
@@ -234,13 +188,12 @@ class HiddenNode(Node):
     return
 
 #------------------------------------------------------------------------------
-class OutputNode(Node):
+class OutputNode():
   '''
   An output node
   '''
   #----------------------------------------------------------------------------  
-  def __init__(self, activator, pred = (None,), succ = (None,), 
-               theta = 0, a = 1):
+  def __init__(self, activator, pred = (None,), theta = 0, a = 1):
     '''
     activator: The activator Class contained by this node.
     pred: A tuple of predecessor links.
@@ -248,21 +201,24 @@ class OutputNode(Node):
     theta: The initial value of x.
     a: The number of times to apply the activator's iteration function.
     '''
+    assert isinstance(activator, Activator), 'activator must be an Activator'
+
     assert isinstance(pred, tuple), 'pred must be a tuple'
     assert (isinstance(pred[0], Link) or 
             pred[0] is None), 'pred must contain Links'
 
-    assert isinstance(theta, (int, float)), 'theta must be a number'
+    assert isinstance(theta, (float)), 'theta must be a float'
     assert isinstance(a, int) and a > 0, 'a must be a number > 0'
     
-    Node.__init__(self, activator, succ)
+    
+
     self.pred = pred
     for p in [p for p in self.pred if p != None]:
-      p.connectAsSucc(self)
+      p.connectToOutput(self)
 
     self.a = a
     self.theta = theta
-
+    self.activator = activator
     self.x = 0
     self.c = 0
 
@@ -294,7 +250,7 @@ class Brain():
     self.Ni = Ni
     self.Nh = Nh
     self.No = No
-    self.L = [None]
+    self.L = []
     
     self.inputs = []
     
@@ -314,15 +270,15 @@ class Brain():
     for n in Ni:
       for s in n.succ:
         for x in inputValues[i]:
-          self.L.append(s, x)
+          self.L.append((s, x))
       i += 1
 
     while any(self.L):
       task = self.L.pop(0)
       link = task[0]
       x = task[1]
-      link.write(x)
-      
+      xp = link.activate(x)
+      print xp
 
     return
 
@@ -337,30 +293,35 @@ def f(x):
 def f5(x):
   return x
 
-n1n3 = Link(3, 4)
-n2n3 = Link(6, 5)
-n2n4 = Link(8, 6)
-n3n4 = Link(12, 7)
-n3n5 = Link(15, 8)
-n4n5 = Link(20, 9)
-n5n3 = Link(15, 8)
+n1n3 = Link(3.0, 4.0)
+n2n3 = Link(6.0, 5.0)
+n2n4 = Link(8.0, 6.0)
+n3n4 = Link(12.0, 7.0)
+n3n5 = Link(15.0, 8.0)
+n4n5 = Link(20.0, 9.0)
+n5n3 = Link(15.0, 8.0)
 A = Activator(i, f)
 A5 = Activator(i, f5)
 
 c1 = 2
 c2 = 1
 
-n1 = InputNode(activator = A, succ = (n1n3,)) #input node
-n2 = InputNode(activator = A, succ = (n2n3, n2n4)) #input node
+n1 = InputNode(activator = A, c = 2, succ = (n1n3,)) #input node
+n2 = InputNode(activator = A, c = 1, succ = (n2n3, n2n4)) #input node
 
 n3 = HiddenNode(activator = A, pred = (n2n3, n5n3), vLinks = ((n1n3, n3n4),),
           theta = 2.1, a = 3)
 n4 = HiddenNode(activator = A, pred = (n2n4, n3n4), succ = (n4n5,), theta = -1.9,
           a = 2)
-n5 = OutputNode(activator = A5, pred = (n3n5, n4n5), theta = 0, a = 2)
+n5 = OutputNode(activator = A5, pred = (n3n5, n4n5), theta = 0.0, a = 2)
 
 Ni = (n1, n2)
-N = (n3, n4, n5)
+Nh = (n3, n4)
+No = (n5,)
 E = (n1n3, n2n3, n2n4, n3n4, n3n5, n4n5, n5n3)
 
-#X = (x11, x12, x21) #inputs
+brain = Brain(Ni, Nh, No)
+
+X = [[1.5, -0.8], [1.1]]
+brain.activate(X)
+

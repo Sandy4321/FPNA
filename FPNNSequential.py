@@ -108,7 +108,7 @@ class Activator():
     return self.__str__()
 
   #----------------------------------------------------------------------------  
-  def iterator(self, x):
+  def iterate(self, x):
     '''
     Calls the iterator function i on x and returns i's return.
     No error handling happens here.
@@ -221,6 +221,18 @@ class HiddenNode():
   def __repr__(self):
     return self.__str__()
 
+  #----------------------------------------------------------------------------
+  def activate(self, xp):
+    self.c += 1
+    self.x = self.activator.iterate([self.x, xp])
+    if self.c == self.a:
+      self.c = 0
+      y = self.activator.activate(self.x)
+      self.x = self.theta
+      return y
+    else:
+      return None
+
 #------------------------------------------------------------------------------
 class OutputNode():
   '''
@@ -264,6 +276,18 @@ class OutputNode():
     return self.name
   def __repr__(self):
     return self.__str__()
+
+  #----------------------------------------------------------------------------
+  def activate(self, xp):
+    self.c += 1
+    self.x = self.activator.iterate([self.x, xp])
+    if self.c == self.a:
+      self.c = 0
+      y = self.activator.activate(self.x)
+      self.x = self.theta
+      return y
+    else:
+      return None
 
 #------------------------------------------------------------------------------
 class Brain():
@@ -316,6 +340,8 @@ class Brain():
       raise AssertionErorr('You must pass n.c values to each InputNode ' +
                            'as nested lists.  [[n1.c ...], [n2.c ...], ...]')
     #Creates the task list
+    Y = [0]*len(self.No)
+    print Y
     i = 0
     for n in Ni:
       for s in n.succ:
@@ -331,18 +357,26 @@ class Brain():
       n = link.outputNode
       x = task[1]
       xp = link.activate(x)
-      if not isinstance(n, InputNode):
+      if not isinstance(n, (InputNode, OutputNode)):
         for vl in n.vLinks:
           if link == vl[0]:
             self.L.append((vl[1], xp))
-          
+      
+      if link in n.pred:
+        y = n.activate(xp)
+        if y != None:
+          if isinstance(n, OutputNode):
+            Y[self.No.index(n)] = y
+          for s in n.succ:
+            self.L.append((s, y))
+      
       print self.L
-    return
+    return Y
 
 #program entry
 #==============================================================================
-def i(x, xp):
-  return x + xp
+def i(x):
+  return x[0] + x[1]
 
 def f(x):
   return math.tanh(x)
@@ -381,5 +415,5 @@ E = (n1n3, n2n3, n2n4, n3n4, n3n5, n4n5, n5n3)
 brain = Brain(Ni, Nh, No)
 
 X = [[1.5, -0.8], [1.1]]
-brain.activate(X)
+print brain.activate(X)
 

@@ -1,11 +1,11 @@
-#Brain.py
+o#Brain.py
 #The Node classes would benefit slightly from inheritance, but I think it 
 #will keep things simple if they are all seperate.  It is a small system,
 #inheritance won't make that big of a difference.
 
 #This is currently a sequential implementation
 
-from Link import Link
+from tissue import InputNode, HiddenNode, OutputNode, Link, Activator
 
 #------------------------------------------------------------------------------
 class Brain():
@@ -39,4 +39,4 @@ class Brain():
     return
 
 #==============================================================================
-l = Link.Link(1,2)
+l = Link(1.0, 2.0)

@@ -16,27 +16,46 @@ class Brain():
   just a state machine that drives the nodes and links.
   '''
   #----------------------------------------------------------------------------  
-  def __init__(self, N, E, A, rRS, name = None):
+  def __init__(self, N, E, name = None):
     '''
-    N: An integer defining the number of nodes.
+    N: A list defining the constants for the NN.  Each element should be a 
+    tuple (theta, a, A).  If theta is None that node should be an input node and
+    then the value of a will be interpreted as c (number of inputs).  A
+    should be an activator.
     E: An NxN matrix defining links, their connections, and their weights.
-    If E[n][m] == (float, float) then a link (n,m) is created.
-    It's connections are defined in the rRS matrix.
+    pred(n) = E[*][n]
+    succ(n) = E[n][*]
+    if row r is is empty, then node r is an output
+    if column c is empty, then node c is an input
+    Each entry in E should be either None to indicate that there is no link
+    or a tuple containing (W, T, r, S, [R]). Where [R] is a list of
+    indices to indicate virtual links.  If E[n][m]'s [R] = [1,2] then there
+    is a virtual link from E[n][m] to E[m][1] and E[m][2].  The order
+    here matters.  E[n][m] -> E[m][1] and E[n][m] -> E[m][2].
     A: A length N array of activator classes.  Activator A[n] is assigned
     to Node n.
-    rRS: An NxN matrix defining the r, R, and S values for each node.
     '''
-    assert isinstance(N, int), 'N must be an integer'
-    assert all([isinstance(l, list) for l in E]), 'E must be a matrix'
-    assert all([len(l) == N for l in E]), 'E must be NxN'
-    assert (all([isinstance(a, Activator) for a in A]),
-            'A should contain Activators')
-    assert len(A) == N, 'A should be of length N'
+    assert isinstance(N, list), 'N must be a list'
+    assert all([isinstance(t, (tuple,list)) for t in N])
+    assert all([len(t) == 2 for t in N])
+    assert all([isinstance(x[0], float) or x[0] == None
+                and isinstance(x[1], int)
+                and isinstance(x[2], Activator) for x in N])
+
+    assert all([isinstance(l, list) for l in E])
+    n = len(N)
+    for l in E:
+      assert all([isinstance(x[0], float) and isinstance(x[1], float)
+                  and isinstance(x[2], (bool)) and isinstance(x[3], bool)
+                  and isinstance(x[4], list) for x in l])
+      assert all([isinstance(x, int) and x>=0 and x<=n  for x[4] in l])
+
+    assert all([len(l) == n for l in E])
     assert name == None or isinstance(name, str), 'name should be a string'
-    self.N = N
+#    (W, T, r, S, [R])
+    self.n = n #The number of nodes
     self.E = E
     self.A = A
-    self.rRS = rRS
     self.name = name
 
     self.buildNetwork()
@@ -46,12 +65,12 @@ class Brain():
   def __str__(self):
     return self.name
   def __repr__(self):
-    return self.__str__()
+    return self.name
 
   #----------------------------------------------------------------------------  
   def buildNetwork(self):
     '''
-    Constructs a network based off of N, E, A, rRS.
+    Constructs a network based off of N, E, A.
     '''
     return
 

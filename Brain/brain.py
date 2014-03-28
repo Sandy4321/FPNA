@@ -1,4 +1,4 @@
-o#Brain.py
+#Brain.py
 #The Node classes would benefit slightly from inheritance, but I think it 
 #will keep things simple if they are all seperate.  It is a small system,
 #inheritance won't make that big of a difference.
@@ -16,7 +16,30 @@ class Brain():
   just a state machine that drives the nodes and links.
   '''
   #----------------------------------------------------------------------------  
-  def __init__(self, name = None):
+  def __init__(self, N, E, A, rRS, name = None):
+    '''
+    N: An integer defining the number of nodes.
+    E: An NxN matrix defining links, their connections, and their weights.
+    If E[n][m] == (float, float) then a link (n,m) is created.
+    It's connections are defined in the rRS matrix.
+    A: A length N array of activator classes.  Activator A[n] is assigned
+    to Node n.
+    rRS: An NxN matrix defining the r, R, and S values for each node.
+    '''
+    assert isinstance(N, int), 'N must be an integer'
+    assert all([isinstance(l, list) for l in E]), 'E must be a matrix'
+    assert all([len(l) == N for l in E]), 'E must be NxN'
+    assert (all([isinstance(a, Activator) for a in A]),
+            'A should contain Activators')
+    assert len(A) == N, 'A should be of length N'
+    assert name == None or isinstance(name, str), 'name should be a string'
+    self.N = N
+    self.E = E
+    self.A = A
+    self.rRS = rRS
+    self.name = name
+
+    self.buildNetwork()
     return
 
   #----------------------------------------------------------------------------  
@@ -26,16 +49,14 @@ class Brain():
     return self.__str__()
 
   #----------------------------------------------------------------------------  
-  def activate(self):
+  def buildNetwork(self):
+    '''
+    Constructs a network based off of N, E, A, rRS.
+    '''
     return
 
   #----------------------------------------------------------------------------  
-  def bind(self, From, To):
-    '''
-    Binds the output of element 'From' to the input of the element 'To'.
-    Outputs are always bound to inputs, inputs don't need to be bound in the
-    other direction.
-    '''
+  def activate(self):
     return
 
 #==============================================================================

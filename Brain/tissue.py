@@ -26,6 +26,14 @@ class InputNode():
 
   #----------------------------------------------------------------------------  
   def activate(self):
+    '''
+    All this does is pushes each value in the Queue to each link in the
+    outputConnections list.
+    '''
+    while self.Queue != []:
+      x = self.Queue.pop(0)
+      for L in self.outputConnections:
+        L.push(x)
     return
 
   #----------------------------------------------------------------------------  
@@ -68,6 +76,7 @@ class HiddenNode():
     self.name = name
     self.theta = theta
     self.x = theta
+    self.a = a
     self.c = 0 #A counter for the number of iterations
     return
 
@@ -79,6 +88,25 @@ class HiddenNode():
 
   #----------------------------------------------------------------------------  
   def activate(self):
+    '''
+    The node processes all values in it's queue and sends various outputs
+    to the appropriate links.  The order here matters, vLinks are to be
+    dealt with first.
+    '''
+    for Lin in self.Queue: #Iterate through all queues
+      while self.Queue[Lin][0] != []:
+        x = self.Queue[Lin][0].pop(0) #Take the first element from the queue
+        for Lout in self.Queue[Lin][1]:
+          Lout.push(x) #Send values to each Queue's virtual links
+        if self.Queue[Lin][2]: #If r == 1 apply the activator
+          self.x = self.activator.iterate(x) #call iterate function
+          self.c += 1 #increment the counter
+          if self.c == self.a: #If the counter has reached it's max vlue
+            self.c = 0 #reset the counter
+            y = self.activator.activate(x) #calculate the activation of x
+            self.x = theta #reset x
+            for Lout in self.outputConnections:
+              Lout.push(y) #output the activation to all output connections
     return
 
   #----------------------------------------------------------------------------  
@@ -155,6 +183,13 @@ class Link():
 
   #----------------------------------------------------------------------------  
   def activate(self):
+    '''
+    Applies the affine transform Wx + T to every value in the Queue and then
+    pushes the values to the outputNode.
+    '''
+    while self.Queue != []:
+      y = self.W*self.Queue.pop(0) + self.T
+      self.outputNode.push(y)
     return
 
   #----------------------------------------------------------------------------  

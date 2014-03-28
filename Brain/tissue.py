@@ -7,13 +7,15 @@ class InputNode():
   by the brain only.
   '''
   #----------------------------------------------------------------------------  
-  def __init__(self, name = None):
+  def __init__(self, c, name = None):
     '''
-    n: Number of inputs to be received
+    c: Number of inputs to be received
     name: Name of this Node
     '''
     assert isinstance(name, str) or name == None, 'name must be a string'
+    assert isinstance(c, int), 'c must be an integer'
     self.Queue = [] #The last element is the input, Queue[0] is the first
+    self.c = c
     self.name = name
     self.outputConnections = []
     return

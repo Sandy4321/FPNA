@@ -69,8 +69,6 @@ class HiddenNode():
     assert isinstance(name, str) or name == 0, 'name must be a string'
     assert isinstance(theta, float), 'theta must be a float'
     assert isinstance(a, int) and a > 0, 'a must be a positive integer'
-    assert isinstance(outputs, list), 'outputs must be a list'
-    assert all([isinstance(o, Link) for o in outputs]), 'ouputs must be Links'
 
     self.outputConnections = [] #[L1, L2, ...]
     self.Queue = {} #{Link : ([floats], [Links], r) ...}
@@ -213,7 +211,7 @@ class Link():
     one node bound to it at a time, and re-binding is considered an error.
     '''
     assert isinstance(N, (InputNode, HiddenNode)), 'N must be a node'
-    assert self.inputNode == None, 'Attempt to re-bind to link'
+    assert self.inputNode == None, 'Attempt to re-bind to link ' + str(self) + ' ' + str(N)
     self.inputNode = N
     return
 

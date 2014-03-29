@@ -6,6 +6,7 @@
 #This is currently a sequential implementation
 
 from tissue import InputNode, HiddenNode, Link, Activator
+import pydot as pd
 import warnings
 import math
 
@@ -120,16 +121,18 @@ class Brain():
     self.E = E
     return
 
-  #----------------------------------------------------------------------------  
+  #----------------------------------------------------------------------------
   def activate(self):
     return
 
-  #----------------------------------------------------------------------------  
+  #---------------------------------------------------------------------------- 
   def printNet(self):
-    print 'E: '
-    print self.E
-    print 'N: '
-    print self.N
+    '''
+    Uses a graphviz api to create a visual representation of the FPNA.
+    '''
+    G = pd.Dot(graph_type='digraph')
+    
+    return
 
 #==============================================================================
 def i(x, xp):

@@ -49,16 +49,20 @@ class Brain():
     n = len(N)
     for l in E:
       assert all([(x == None or x == ())
-                  or (isinstance(x[0], float) and isinstance(x[1], float)
-                  and isinstance(x[2], (bool)) and isinstance(x[3], bool)
-                  and isinstance(x[4], list))
+                  or ((isinstance(x[0], float) and isinstance(x[1], float)
+                  and isinstance(x[2], bool) and isinstance(x[3], bool)
+                  and isinstance(x[4], list)))
                   for x in l])
-      assert all([isinstance(x, int) and x>=0 and x<=n  for x[4] in l])
+      for v in l:
+        if v != () and v != None:
+          assert all([(isinstance(x, int) and x>=0 and x<=n)
+                      or (x == [] or x == None) for x in v[4]])
 
     assert all([len(l) == n for l in E])
     assert name == None or isinstance(name, str), 'name should be a string'
 
     self.n = n #The number of nodes
+    self.N = N
     self.E = E
     self.A = A
     self.name = name
@@ -81,14 +85,16 @@ class Brain():
     for i in range(len(self.N)):
       if(self.N[i][0] == None): #Input node
         assert (self.N[i][2] == None)
-        self.N[i] = InputNode(n[i][1],'inN' + str(i))
+        self.N[i] = InputNode(self.N[i][1],'inN' + str(i))
       else:
-        self.N[i] = Node(self.N[i][2], self.N[i][0], self.N[i][1],
-                         'N' + str(i))
+        self.N[i] = HiddenNode(self.N[i][2], self.N[i][0], self.N[i][1],
+                              'N' + str(i))
 
-    E = [[]]
+    #(W, T, r, S, [R])
+    E = [] #Contains links.  nxn array
     i = 0
     for row in self.E:
+      E.append([])
       j = 0
       for l in row:
         if l == None or l == ():
@@ -105,9 +111,9 @@ class Brain():
         if l == None or l == ():
           pass
         else:
-          self.N[j].bind(E[i][j], l[4], l[3])
-          if l[2]:
-            self.N[i].createconnection(E[i][j])
+          self.N[j].bind(E[i][j], [E[j][x] for x in l[4]], l[2])
+          if l[3]:
+            self.N[i].createConnection(E[i][j])
         j += 1
       i += 1
 
@@ -117,6 +123,13 @@ class Brain():
   #----------------------------------------------------------------------------  
   def activate(self):
     return
+
+  #----------------------------------------------------------------------------  
+  def printNet(self):
+    print 'E: '
+    print self.E
+    print 'N: '
+    print self.N
 
 #==============================================================================
 def i(x, xp):
@@ -132,11 +145,12 @@ A = Activator(i, f, 'act')
 #W = i*j
 #T = i + j
 N = [(None, 2, None), (None, 1, None), (2.1, 3, A), (-1.9, 2, A), (0.0, 2, A)]
-E = [[(), (), (3,4,0,True,[4]), (), ()],
-     [(), (), (6,5,True,True,[]), (8,6,True,True,[]), ()],
-     [(), (), (), (12,7,True,False,[]), (15,8,True,True,[])],
-     [(), (), (), (), (20,9,True,True,[])],
-     [(), (), (15,8,True,False,[]), (), ()]]
+E = [[(), (), (3.0,4.0,False,True,[3]), (), ()],
+     [(), (), (6.0,5.0,True,True,[]), (8.0,6.0,True,True,[]), ()],
+     [(), (), (), (12.0,7.0,True,False,[]), (15.0,8.0,True,True,[])],
+     [(), (), (), (), (20.0,9.0,True,True,[])],
+     [(), (), (15.0,8.0,True,False,[]), (), ()]]
 
 
 B = Brain(N, E, 'I\m a Brain!')
+B.printNet()

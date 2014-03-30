@@ -27,6 +27,13 @@ class InputNode():
     return self.name
 
   #----------------------------------------------------------------------------  
+  def getOutputConnections(self):
+    '''
+    Simply returns the list of outputConnections
+    '''
+    return self.outputConnections
+
+  #----------------------------------------------------------------------------  
   def activate(self):
     '''
     All this does is pushes each value in the Queue to each link in the
@@ -87,6 +94,21 @@ class HiddenNode():
     return self.name
 
   #----------------------------------------------------------------------------  
+  def getOutputConnections(self):
+    '''
+    Simply returns the list of outputConnections
+    '''
+    return self.outputConnections
+
+  #----------------------------------------------------------------------------  
+  def getVLinks(self):
+    '''
+    Returns a dictionary which is a subset of the Queue.
+    {Link : [Links]} which is a dictionary of vLinks.
+    '''
+    return {L : self.Queue[L][1] for L in self.Queue}
+
+  #----------------------------------------------------------------------------  
   def activate(self):
     '''
     The node processes all values in it's queue and sends various outputs
@@ -123,18 +145,19 @@ class HiddenNode():
   #----------------------------------------------------------------------------  
   def bind(self, L, vLinks = [], r = False):
     '''
-    The Link L binds itself to an input of this Node.  An attempt to bind 
-    more than once is considered an error.  If r is True, then inputs from
-    L will go to the activator.
+    The Link L binds itself to an input of this Node. If r is True, then 
+    inputs from L will go to the activator.
     '''
     assert isinstance(L, Link), 'L must be a Link'
     assert isinstance(vLinks, list), 'vLinks must be a list'
     assert all([isinstance(l, Link) for l in vLinks]), 'vLinks must be Links'
     assert isinstance(r, bool), 'r must be a bool'
-    assert L not in self.Queue, 'Attempt by ' + str(L) + ' to bind twice'
+    if L in self.Queue:
+      return #Creating virtual links means some links will try to bind twice
     if L not in self.outputConnections:
       for l in vLinks:
-        l.bind(self) #Bind to each of the links
+        l.bind(self) #Bind to each of the vLinks
+    L.setOutputNode(self) #Link L must also set it's outputNode
     self.Queue[L] = [[], vLinks, r]
     return
 
@@ -182,6 +205,20 @@ class Link():
     return self.name
 
   #----------------------------------------------------------------------------  
+  def getOutputNode(self):
+    '''
+    Returns the outputNode
+    '''
+    return self.outputNode
+
+  #----------------------------------------------------------------------------  
+  def getInputNode(self):
+    '''
+    Returns the inputNode
+    '''
+    return self.inputNode
+
+  #----------------------------------------------------------------------------  
   def activate(self):
     '''
     Applies the affine transform Wx + T to every value in the Queue and then
@@ -224,7 +261,7 @@ class Link():
     '''
     assert isinstance(N, HiddenNode), 'N must be a Node'
     assert self.outputNode == None
-    N.bind(self) #Bind to the node
+#    N.bind(self) #Bind to the node
     self.outputNode = N
     return
 

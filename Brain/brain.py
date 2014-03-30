@@ -35,8 +35,6 @@ class Brain():
     indices to indicate virtual links.  If E[n][m]'s [R] = [1,2] then there
     is a virtual link from E[n][m] to E[m][1] and E[m][2].  The order
     here matters.  E[n][m] -> E[m][1] and E[n][m] -> E[m][2].
-    A: A length N array of activator classes.  Activator A[n] is assigned
-    to Node n.
     '''
     assert isinstance(N, list), 'N must be a list'
     assert all([isinstance(t, (tuple,list)) for t in N])
@@ -63,10 +61,9 @@ class Brain():
     assert name == None or isinstance(name, str), 'name should be a string'
 
     self.n = n #The number of nodes
-    self.N = N
-    self.E = E
-    self.A = A
-    self.name = name
+    self.N = N #The node objects
+    self.E = E #Edges
+    self.name = name #
 
     self.buildNetwork()
     return
@@ -82,17 +79,19 @@ class Brain():
     '''
     Constructs a network based off of N, and E.
     '''
-    #N: (theta, a, A)
+    #(theta, a, A)
+    #Create all the nodes that will be in the FPNA
     for i in range(len(self.N)):
-      if(self.N[i][0] == None): #Input node
+      if(self.N[i][0] == None): #If there is no theta, it must be an InputNode
         assert (self.N[i][2] == None)
-        self.N[i] = InputNode(self.N[i][1],'inN' + str(i))
+        self.N[i] = InputNode(self.N[i][1],'in_N' + str(i))
       else:
         self.N[i] = HiddenNode(self.N[i][2], self.N[i][0], self.N[i][1],
                               'N' + str(i))
 
-    #(W, T, r, S, [R])
-    E = [] #Contains links.  nxn array
+    E = [] #Contains links. nxn array. Temporary, is later assigned to self.E
+
+    #Create all the links that will be in the FPNA
     i = 0
     for row in self.E:
       E.append([])
@@ -105,6 +104,7 @@ class Brain():
         j += 1
       i += 1
 
+    #Make all of the connections between links and Nodes
     i = 0
     for row in self.E:
       j = 0
@@ -112,6 +112,7 @@ class Brain():
         if l == None or l == ():
           pass
         else:
+          #The output of Link E[i][j] binds to the input of N[j]
           self.N[j].bind(E[i][j], [E[j][x] for x in l[4]], l[2])
           if l[3]:
             self.N[i].createConnection(E[i][j])
@@ -131,8 +132,35 @@ class Brain():
     Uses a graphviz api to create a visual representation of the FPNA.
     '''
     G = pd.Dot(graph_type='digraph')
-    
+    for n in self.N:
+      if isinstance(n, InputNode):
+        self.extendGraph(n, G)
+    G.write_png('test.png')
     return
+
+  #---------------------------------------------------------------------------- 
+  def extendGraph(self, N, G):
+    '''
+    Recursively extends the graph layout by traversing the FPNA.  
+    N: The node
+    G: The graph
+    '''
+    if N == None:
+      return
+    for L in N.getOutputConnections():
+      print str(N) + '->' + str(L.getOutputNode())
+      e = pd.Edge(str(N), str(L.getOutputNode()))
+      G.add_edge(e)
+      self.extendGraph(L.getOutputNode(), G)
+      """
+    for L in N.getVLinks():
+      print L.getInputNode()
+      print str(N) + '->' + str(L.getOutputNode())
+      e = pd.Edge(str(N), str(L.getOutputNode()), set_label = 'vLink')
+      G.add_edge(e)
+      self.extendGraph(L.getOutputNode(), G)
+      """
+      return
 
 #==============================================================================
 def i(x, xp):
@@ -148,12 +176,35 @@ A = Activator(i, f, 'act')
 #W = i*j
 #T = i + j
 N = [(None, 2, None), (None, 1, None), (2.1, 3, A), (-1.9, 2, A), (0.0, 2, A)]
+"""
 E = [[(), (), (3.0,4.0,False,True,[3]), (), ()],
      [(), (), (6.0,5.0,True,True,[]), (8.0,6.0,True,True,[]), ()],
      [(), (), (), (12.0,7.0,True,False,[]), (15.0,8.0,True,True,[])],
      [(), (), (), (), (20.0,9.0,True,True,[])],
      [(), (), (15.0,8.0,True,False,[]), (), ()]]
+     [(), (), (), (), ()]]
+"""
+E = [
+  [(),(1.0, 1.0, True, True, []),(1.0, 1.0, True, True, []),(1.0, 1.0, True, True, []),(1.0, 1.0, True, True, [])],
+
+     [(),(),(1.0, 1.0, True, True, []),(1.0, 1.0, True, True, []),(1.0, 1.0, True, True, [])],
+
+     [(),(),(),(1.0, 1.0, True, True, []),(1.0, 1.0, True, True, [])],
+
+     [(),(),(),(),(1.0, 1.0, True, True, [])]
+  ]
 
 
 B = Brain(N, E, 'I\m a Brain!')
+
+print B.N
+for r in B.E:
+  for l in r:
+    if l != None:
+      print '-----'
+      print l
+      print l.inputNode
+      print l.outputNode
+
 B.printNet()
+

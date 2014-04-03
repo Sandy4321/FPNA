@@ -19,53 +19,13 @@ class Brain():
   just a state machine that drives the nodes and links.
   '''
   #----------------------------------------------------------------------------  
-  def __init__(self, N, E, name = None):
+  def __init__(self, name = None)
     '''
-    N: A list defining the constants for the NN.  Each element should be a 
-    tuple (theta, a, A).  If theta is None that node should be an input node and
-    then the value of a will be interpreted as c (number of inputs).  A
-    should be an activator.
-    E: An NxN matrix defining links, their connections, and their weights.
-    pred(n) = E[*][n]
-    succ(n) = E[n][*]
-    if row r is is empty, then node r is an output
-    if column c is empty, then node c is an input
-    Each entry in E should be either None to indicate that there is no link
-    or a tuple containing (W, T, r, S, [R]). Where [R] is a list of
-    indices to indicate virtual links.  If E[n][m]'s [R] = [1,2] then there
-    is a virtual link from E[n][m] to E[m][1] and E[m][2].  The order
-    here matters.  E[n][m] -> E[m][1] and E[n][m] -> E[m][2].
     '''
-    assert isinstance(N, list), 'N must be a list'
-    assert all([isinstance(t, (tuple,list)) for t in N])
-    assert all([len(t) == 3 for t in N])
-    assert all([(isinstance(x[0], float) or x[0] == None)
-                and isinstance(x[1], int)
-                and (isinstance(x[2], Activator)
-                or x[2] == None) for x in N])
-
-    assert all([isinstance(l, list) for l in E])
-    n = len(N)
-    for l in E:
-      assert all([(x == None or x == ())
-                  or ((isinstance(x[0], float) and isinstance(x[1], float)
-                  and isinstance(x[2], bool) and isinstance(x[3], bool)
-                  and isinstance(x[4], list)))
-                  for x in l])
-      for v in l:
-        if v != () and v != None:
-          assert all([(isinstance(x, int) and x>=0 and x<=n)
-                      or (x == [] or x == None) for x in v[4]])
-
-    assert all([len(l) == n for l in E])
-    assert name == None or isinstance(name, str), 'name should be a string'
-
-    self.n = n #The number of nodes
-    self.N = N #The node objects
-    self.E = E #Edges
-    self.name = name #
-
-    self.buildNetwork()
+    assert(name, str) or name == None, 'name must be a string'
+    self.name = name
+    self.inputNodes = []
+    self.hiddenNodes = []
     return
 
   #----------------------------------------------------------------------------  
@@ -74,63 +34,56 @@ class Brain():
   def __repr__(self):
     return self.name
 
-  #----------------------------------------------------------------------------  
-  def buildNetwork(self):
-    '''
-    Constructs a network based off of N, and E.
-    '''
-    #(theta, a, A)
-    #Create all the nodes that will be in the FPNA
-    for i in range(len(self.N)):
-      if(self.N[i][0] == None): #If there is no theta, it must be an InputNode
-        assert (self.N[i][2] == None)
-        self.N[i] = InputNode(self.N[i][1],'in_N' + str(i))
-      else:
-        self.N[i] = HiddenNode(self.N[i][2], self.N[i][0], self.N[i][1],
-                              'N' + str(i))
-
-    E = [] #Contains links. nxn array. Temporary, is later assigned to self.E
-
-    #Create all the links that will be in the FPNA
-    i = 0
-    for row in self.E:
-      E.append([])
-      j = 0
-      for l in row:
-        if l == None or l == ():
-          E[i].append(None)
-        else:
-          E[i].append(Link(l[0], l[1], 'L' + str(i) + str(j)))
-        j += 1
-      i += 1
-
-    #Make all of the connections between links and Nodes
-    i = 0
-    for row in self.E:
-      j = 0
-      for l in row:
-        if l == None or l == ():
-          pass
-        else:
-          #The output of Link E[i][j] binds to the input of N[j]
-          self.N[j].bind(E[i][j], [E[j][x] for x in l[4]], l[2])
-          if l[3]:
-            self.N[i].createConnection(E[i][j])
-        j += 1
-      i += 1
-
-    self.E = E
-    return
-
   #----------------------------------------------------------------------------
   def activate(self):
     return
+
+  #---------------------------------------------------------------------------- 
+  def addInputNode(self, c = None, name = None):
+    if c == None:
+      c = rawInput('Number of inputs that will be sent to this node?')
+      if c == '':
+        c = 1
+      c = int(c)
+
+    if name == None:
+      name = rawInput('Node Name?')
+      if name == '':
+        name = 'InputNode%d' %len(inputNodes)
+
+    self.inputNodes.append(InputNode(c, name))
+    return
+  
+  #---------------------------------------------------------------------------- 
+  def addHiddenNode(self, activator = None, theta = None, a = None, 
+                    name = None):
+    if activator == None:
+      activator = self.createActivator()
+
+    if Theta == None:
+      theta = rawInput('Initial x value?')
+      if theta == '':
+        theta = 0
+      theta = int(theta)
+      
+    if a == None:
+      a = rawInput('Number of iterations before activation function applied?')
+      if a == '':
+        a = 1
+      a = int(a)
+
+    if name == None:
+      name = rawInput('Node name?')
+      if name == '':
+        name = 'HiddenNode%d' %len(hiddenNodes)
+    self.hiddenNodes.append(HiddenNode(
 
   #---------------------------------------------------------------------------- 
   def printNet(self):
     '''
     Uses a graphviz api to create a visual representation of the FPNA.
     '''
+    raise NotImplementedError
     G = pd.Dot(graph_type='digraph')
     for n in self.N:
       if isinstance(n, InputNode):
@@ -145,6 +98,7 @@ class Brain():
     N: The node
     G: The graph
     '''
+    raise NotImplementedError
     if N == None:
       return
     for L in N.getOutputConnections():
@@ -169,42 +123,4 @@ def i(x, xp):
 def f(x):
   math.tanh(x)
 
-A = Activator(i, f, 'act')
-
-#(theta, a, A)
-#(W, T, r, S, [R])
-#W = i*j
-#T = i + j
-N = [(None, 2, None), (None, 1, None), (2.1, 3, A), (-1.9, 2, A), (0.0, 2, A)]
-"""
-E = [[(), (), (3.0,4.0,False,True,[3]), (), ()],
-     [(), (), (6.0,5.0,True,True,[]), (8.0,6.0,True,True,[]), ()],
-     [(), (), (), (12.0,7.0,True,False,[]), (15.0,8.0,True,True,[])],
-     [(), (), (), (), (20.0,9.0,True,True,[])],
-     [(), (), (15.0,8.0,True,False,[]), (), ()]]
-     [(), (), (), (), ()]]
-"""
-E = [
-  [(),(1.0, 1.0, True, True, []),(1.0, 1.0, True, True, []),(1.0, 1.0, True, True, []),(1.0, 1.0, True, True, [])],
-
-     [(),(),(1.0, 1.0, True, True, []),(1.0, 1.0, True, True, []),(1.0, 1.0, True, True, [])],
-
-     [(),(),(),(1.0, 1.0, True, True, []),(1.0, 1.0, True, True, [])],
-
-     [(),(),(),(),(1.0, 1.0, True, True, [])]
-  ]
-
-
-B = Brain(N, E, 'I\m a Brain!')
-
-print B.N
-for r in B.E:
-  for l in r:
-    if l != None:
-      print '-----'
-      print l
-      print l.inputNode
-      print l.outputNode
-
-B.printNet()
 

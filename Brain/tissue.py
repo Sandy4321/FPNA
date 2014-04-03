@@ -2,7 +2,7 @@
 #------------------------------------------------------------------------------
 class InputNode():
   '''
-  Input nodes take input from the brain, they simply pass values into the 
+  Input nodes take inputs from the brain, they simply pass values into the 
   network.  They don't apply any transforms.  Their queues are written into
   by the brain only.
   '''

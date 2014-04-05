@@ -15,7 +15,8 @@ class Brain():
     '''
     self.LinkList = []
     self.ActList = []
-    self.IDCount = 0
+    self.E = []
+    self.IDCount = 1
     return
 
   #----------------------------------------------------------------------------
@@ -60,19 +61,22 @@ class Brain():
     '''
     '''
     R1.appendOutput(R2)
+    R1.ACKMax.value += 1
     R2.appendInput(R1)
+    self.E.append((R1, R2))
     return
 
 B = Brain()
 L1 = B.createLink(1.0, 1.0)
 L2 = B.createLink(2.0, 2.0)
 B.createConnection(L1, L2)
-
-#L1.dataQueue.put((1.0, None))
-#L1.queueEvent.set()
+B.createConnection(L2, L1)
 
 P1 = Process(target=L1.activate)
 P2 = Process(target=L2.activate)
+
+L1.dataQueue.put((1.0, 0))
+L1.queueEvent.set()
 
 P1.start()
 P2.start()

@@ -13,9 +13,9 @@ class Brain():
   def __init__(self):
     '''
     '''
-    self.LinkList = {}
-    self.ActList = {}
-    self.PIDCount = 0
+    self.LinkList = []
+    self.ActList = []
+    self.IDCount = 0
     return
 
   #----------------------------------------------------------------------------
@@ -30,15 +30,17 @@ class Brain():
     ACKMax = Value('I', 0)
     dataQueue = Queue()
     queueEvent = Event()
-    PID = Value('I', self.PIDCount)
-    self.PIDCount += 1
+    queueEL = Lock()
+#    PID = Value('I', self.PIDCount)
+    ID = self.IDCount
+    self.IDCount += 1
 
     #Create the Link
     newLink = Link(W, T, ACKCount, ACKEvent, ACKMax, dataQueue, queueEvent,
-                   PID)
+                   queueEL, ID)
 
     #Append the Link to the list
-    self.LinkList[PID] = newLink
+    self.LinkList.append(newLink)
     return newLink
 
   #----------------------------------------------------------------------------
@@ -65,6 +67,9 @@ B = Brain()
 L1 = B.createLink(1.0, 1.0)
 L2 = B.createLink(2.0, 2.0)
 B.createConnection(L1, L2)
+
+#L1.dataQueue.put((1.0, None))
+#L1.queueEvent.set()
 
 P1 = Process(target=L1.activate)
 P2 = Process(target=L2.activate)

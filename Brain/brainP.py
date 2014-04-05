@@ -66,17 +66,24 @@ class Brain():
 B = Brain()
 L1 = B.createLink(1.0, 1.0)
 L2 = B.createLink(2.0, 2.0)
+L3 = B.createLink(3.0, 3.0)
+
 B.createConnection(L1, L2)
 B.createConnection(L2, L1)
+B.createConnection(L1, L3)
+B.createConnection(L3, L1)
+#B.createConnection(L2, L3)
+#B.createConnection(L3, L2)
 
 P1 = Process(target=L1.activate)
 P2 = Process(target=L2.activate)
+P3 = Process(target=L3.activate)
 
 L1.dataQueue.put((1.0, 0))
 
 P1.start()
 P2.start()
-time.sleep(1)
-L1.queueEvent.set()
+P3.start()
 
+time.sleep(1)
 

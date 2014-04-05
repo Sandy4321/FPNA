@@ -9,7 +9,7 @@ class Link():
   '''
   #----------------------------------------------------------------------------
   def __init__(self, W, T, ACKCount, ACKEvent, ACKMax, dataQueue,
-               queueEvent, queueEL, ID):
+               ID):
     '''
     (float)W: A weight a the affine transform Wx + T
     (float)T: T A weight a the affine transform Wx + T
@@ -29,8 +29,6 @@ class Link():
     self.ACKMax = ACKMax #This needs to be set to len(outputList)
 
     self.dataQueue = dataQueue
-    self.queueEvent = queueEvent
-    self.queueEL = queueEL
 
     self.outputList = {}
     self.inputList = {}
@@ -60,11 +58,10 @@ class Link():
            'outputList: ' + str(self.outputList) + '\n' +
            'inputList: ' + str(self.inputList) + '\n\n'
           )
+    print 'Process ' + str(self.ID) + ' Running'
     while True:
-      self.queueEvent.wait()
-      print 'ID %d got queueEvent' %self.ID
       x, ID = self.dataQueue.get()
-      print 'ID %d Got queue data (%d, %f)' %(self.ID, ID, x)  
+      print 'ID %d Got queue data (%f, %d)' %(self.ID, x, ID)  
       if ID != 0:
         self.ACK(ID)
       xp = self.W*x + self.T
@@ -73,11 +70,7 @@ class Link():
         self.push(xp, ID)
       self.ACKEvent.wait()
       self.ACKCount.value = 0
-      print 'ID %d got ACKEvent' %self.ID
-      self.queueEL.acquire()
-      if self.dataQueue.empty():
-        self.queueEvent.clear()
-      self.queueEL.release()
+      self.ACKEvent.clear()
     return
 
   #----------------------------------------------------------------------------
@@ -90,9 +83,8 @@ class Link():
     self.outputList[R.ID] = {'ACKCount': R.ACKCount,
                              'ACKEvent': R.ACKEvent,
                              'ACKMax': R.ACKMax,
-                             'dataQueue': R.dataQueue,
-                             'queueEvent': R.queueEvent,
-                             'queueEL': R.queueEL}
+                             'dataQueue': R.dataQueue
+                             }
     return
 
   #----------------------------------------------------------------------------
@@ -106,8 +98,7 @@ class Link():
                             'ACKEvent': R.ACKEvent,
                             'ACKMax': R.ACKMax,
                             'dataQueue': R.dataQueue,
-                            'queueEvent': R.queueEvent,
-                            'queueEL': R.queueEL}
+                            }
     return
 
   #----------------------------------------------------------------------------
@@ -118,10 +109,7 @@ class Link():
     if not ID in self.outputList:
       raise RuntimeError('%d is not in the outputList' %ID)
     else:
-      self.outputList[ID]['queueEL'].acquire()
       self.outputList[ID]['dataQueue'].put((x, self.ID))
-      self.outputList[ID]['queueEvent'].set()
-      self.outputList[ID]['queueEL'].release()
     return
 
   #----------------------------------------------------------------------------

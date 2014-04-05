@@ -60,29 +60,24 @@ class Link():
            'outputList: ' + str(self.outputList) + '\n' +
            'inputList: ' + str(self.inputList) + '\n\n'
           )
-    
-#    print '%d running...' %self.PID.value
-#    print self.outputList
-#    print self.inputList
-
-    """
     while True:
       self.queueEvent.wait()
-      print '%d got queueEvent' %self.PID.value
-      x, PID = self.dataQueue.get()
-      if PID != None:
-        print '%f %d Got queue data' %(x, PID.value)  
-        self.ACK(PID.value)
+      print 'ID %d got queueEvent' %self.ID
+      x, ID = self.dataQueue.get()
+      print 'ID %d Got queue data (%d, %f)' %(self.ID, ID, x)  
+      if ID != 0:
+        self.ACK(ID)
       xp = self.W*x + self.T
       assert self.ACKCount.value == 0, 'ACKCount not 0 prior to outputting'
-      for PID in self.outputList:
-        self.push(xp, PID)
+      for ID in self.outputList:
+        self.push(xp, ID)
       self.ACKEvent.wait()
       self.ACKCount.value = 0
-      with self.queueEL.acquire():
-        if self.dataQueue.empty():
-          self.queueEvent.clear()
-      """
+      print 'ID %d got ACKEvent' %self.ID
+      self.queueEL.acquire()
+      if self.dataQueue.empty():
+        self.queueEvent.clear()
+      self.queueEL.release()
     return
 
   #----------------------------------------------------------------------------

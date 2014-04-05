@@ -80,6 +80,11 @@ class Link():
     The resource R pushes the value x to the Queue.  If R is not in the
     inputList, it is an error.
     '''
+    if not R in self.inputList:
+      raise RuntimeError('R is not in the inputList')
+    else:
+      self.dataQueue.put((x,R)) #Package into a tuple and put
+      self.queueEvent.set()
     return
 
   #----------------------------------------------------------------------------
@@ -88,48 +93,15 @@ class Link():
     The resource R sends an acknowledgement to this Link.  If R is not in the
     outputList, it is an error.
     '''
+    if not R in self.outputList:
+      raise RuntimeError('R is not in the inputList')
+    else:
+      with ACKCount.get_lock():
+        counter.value += 1
+
+      if self.ACKCount.value == self.ACKMax.value:
+        self.ACKEvent.set()
     return
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #------------------------------------------------------------------------------
 class Activator():

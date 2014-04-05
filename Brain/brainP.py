@@ -30,15 +30,12 @@ class Brain():
     ACKEvent = Event()
     ACKMax = Value('I', 0)
     dataQueue = Queue()
-    queueEvent = Event()
-    queueEL = Lock()
 #    PID = Value('I', self.PIDCount)
     ID = self.IDCount
     self.IDCount += 1
 
     #Create the Link
-    newLink = Link(W, T, ACKCount, ACKEvent, ACKMax, dataQueue, queueEvent,
-                   queueEL, ID)
+    newLink = Link(W, T, ACKCount, ACKEvent, ACKMax, dataQueue, ID)
 
     #Append the Link to the list
     self.LinkList.append(newLink)
@@ -76,9 +73,10 @@ P1 = Process(target=L1.activate)
 P2 = Process(target=L2.activate)
 
 L1.dataQueue.put((1.0, 0))
-L1.queueEvent.set()
 
 P1.start()
 P2.start()
+time.sleep(1)
+L1.queueEvent.set()
 
 

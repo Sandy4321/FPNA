@@ -52,10 +52,14 @@ class Link():
 #           'Process ' + str(self.ID) + ' Running \n' +
 #           'PID: ' + str(os.getpid()) + '\n' +
 #           'outputList: ' + str(self.outputList) + '\n' +
-#           'inputList: ' + str(self.inputList) + '\n\n'
+#           'inputList: ' + str(self.inputList) + '\n'
+#           'ACKMax: ' + str(self.ACKMax.value) + '\n\n'
 #          )
     while True:
       x, ID = self.dataQueue.get()
+      if self.ID == 4:
+        if x == 999:
+          print 'SUCCESS'
       print 'ID %d Got queue data (%f, %d)' %(self.ID, x, ID)  
       if ID != 0:
         self.ACK(ID)
@@ -63,9 +67,10 @@ class Link():
       assert self.ACKCount.value == 0, 'ACKCount not 0 prior to outputting'
       for ID in self.outputList:
         self.push(xp, ID)
-      self.ACKEvent.wait()
-      self.ACKEvent.clear()
-      print 'ID %d got ACKEvent' %self.ID
+      if self.ACKMax.value > 0:
+        self.ACKEvent.wait()
+        print 'ID %d Got all ACK' %self.ID
+        self.ACKEvent.clear()
     return
 
   #----------------------------------------------------------------------------

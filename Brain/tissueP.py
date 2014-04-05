@@ -9,35 +9,37 @@ class Link():
   '''
   #----------------------------------------------------------------------------
   def __init__(self, W, T, ACKCount, ACKEvent, ACKMax, dataQueue,
-               queueEvent, PID):
+               queueEvent, queueEL, ID):
     '''
     (float)W: A weight a the affine transform Wx + T
     (float)T: T A weight a the affine transform Wx + T
+    (int)ID: To identify different processes
     -> All of the following are from the multiprocessing module
     (Value)ACKCount: A counter for the number of acknowledgements
     (Event)ACKEvent: An event for when ACKCount = ACKMax
     (Value)ACKMax: The number of output connections.  ie, number of ACKs to get
     (Queue)dataQueue: A queue for data input
     (Event)queueEvent: An event for when the dataQueue is not empty
-    (Value)PID: To hold the processes PID
     '''
     assert isinstance(W, float), 'W must be an float'
     assert isinstance(T, float), 'T must be a float'
 
     self.ACKCount = ACKCount
     self.ACKEvent = ACKEvent
-    self.ACKCountMax = ACKMax #This needs to be set to len(outputList)
+    self.ACKMax = ACKMax #This needs to be set to len(outputList)
 
     self.dataQueue = dataQueue
     self.queueEvent = queueEvent
+    self.queueEL = queueEL
 
-    self.outputList = []
-    self.inputList = []
+    self.outputList = {}
+    self.inputList = {}
     
     self.W = W
     self.T = T
 
-    self.PID = PID
+    self.PID = 0
+    self.ID = ID
     return
 
   #----------------------------------------------------------------------------
@@ -51,7 +53,36 @@ class Link():
     else in the class just access data.  Call this function when
     everything is connected and finalized.
     '''
-    self.PID.value = os.getpid()
+    self.PID = os.getpid()
+    print ('=====================================================\n' +
+           'Process ' + str(self.ID) + ' Running \n' +
+           'PID: ' + str(os.getpid()) + '\n' +
+           'outputList: ' + str(self.outputList) + '\n' +
+           'inputList: ' + str(self.inputList) + '\n\n'
+          )
+    
+#    print '%d running...' %self.PID.value
+#    print self.outputList
+#    print self.inputList
+
+    """
+    while True:
+      self.queueEvent.wait()
+      print '%d got queueEvent' %self.PID.value
+      x, PID = self.dataQueue.get()
+      if PID != None:
+        print '%f %d Got queue data' %(x, PID.value)  
+        self.ACK(PID.value)
+      xp = self.W*x + self.T
+      assert self.ACKCount.value == 0, 'ACKCount not 0 prior to outputting'
+      for PID in self.outputList:
+        self.push(xp, PID)
+      self.ACKEvent.wait()
+      self.ACKCount.value = 0
+      with self.queueEL.acquire():
+        if self.dataQueue.empty():
+          self.queueEvent.clear()
+      """
     return
 
   #----------------------------------------------------------------------------
@@ -61,7 +92,12 @@ class Link():
     checking for programmer errors, it isn't necessary.  I may remove this
     method in the future.
     '''
-    self.outputList.append(R)
+    self.outputList[R.ID] = {'ACKCount': R.ACKCount,
+                             'ACKEvent': R.ACKEvent,
+                             'ACKMax': R.ACKMax,
+                             'dataQueue': R.dataQueue,
+                             'queueEvent': R.queueEvent,
+                             'queueEL': R.queueEL}
     return
 
   #----------------------------------------------------------------------------
@@ -71,37 +107,47 @@ class Link():
     checking for programmer errors, it isn't necessary.  I may remove this
     method in the future.
     '''
-    self.inputList.append(R)
+    self.inputList[R.ID] = {'ACKCount': R.ACKCount,
+                            'ACKEvent': R.ACKEvent,
+                            'ACKMax': R.ACKMax,
+                            'dataQueue': R.dataQueue,
+                            'queueEvent': R.queueEvent,
+                            'queueEL': R.queueEL}
     return
 
   #----------------------------------------------------------------------------
-  def push(self, x, R):
+  def push(self, x, ID):
     '''
-    The resource R pushes the value x to the Queue.  If R is not in the
-    inputList, it is an error.
+    Pushes the value x to ID's dataQueue
     '''
-    if not R in self.inputList:
-      raise RuntimeError('R is not in the inputList')
+    if not ID in self.outputList:
+      raise RuntimeError('%d is not in the outputList' %ID)
     else:
-      self.dataQueue.put((x,R)) #Package into a tuple and put
-      self.queueEvent.set()
+      self.outputList[ID]['queueEL'].acquire()
+      self.outputList[ID]['dataQueue'].put((x, self.ID))
+      self.outputList[ID]['queueEvent'].set()
+      self.outputList[ID]['queueEL'].release()
     return
 
   #----------------------------------------------------------------------------
-  def ACK(self, R):
+  def ACK(self, ID):
     '''
-    The resource R sends an acknowledgement to this Link.  If R is not in the
-    outputList, it is an error.
     '''
-    if not R in self.outputList:
-      raise RuntimeError('R is not in the inputList')
+    if not ID in self.inputList:
+      raise RuntimeError('%d is not in the inputList' %ID)
     else:
-      with ACKCount.get_lock():
-        counter.value += 1
-
-      if self.ACKCount.value == self.ACKMax.value:
-        self.ACKEvent.set()
+      with self.inputList[ID]['ACKCount'].get_lock():
+        self.inputList[ID]['ACKCount'].value += 1
+        if (self.inputList[ID]['ACKCount'].value ==
+            self.inputList[ID]['ACKMax'].value):
+          self.inputList[ID]['ACKEvent'].set()
     return
+
+
+
+
+
+
 
 #------------------------------------------------------------------------------
 class Activator():

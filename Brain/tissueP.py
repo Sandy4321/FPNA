@@ -1,5 +1,6 @@
 #Parallel implementation
 from multiprocessing import Queue, Lock, Event
+import os, time
 
 #------------------------------------------------------------------------------
 class Link():
@@ -7,28 +8,41 @@ class Link():
   The Link resource.  It is connected to and from nodes and other Links.
   '''
   #----------------------------------------------------------------------------
-  def __init__(self, W, T):
+  def __init__(self, W, T, ACKCount, ACKEvent, ACKMax, dataQueue,
+               queueEvent, PID):
     '''
+    (float)W: A weight a the affine transform Wx + T
+    (float)T: T A weight a the affine transform Wx + T
+    -> All of the following are from the multiprocessing module
+    (Value)ACKCount: A counter for the number of acknowledgements
+    (Event)ACKEvent: An event for when ACKCount = ACKMax
+    (Value)ACKMax: The number of output connections.  ie, number of ACKs to get
+    (Queue)dataQueue: A queue for data input
+    (Event)queueEvent: An event for when the dataQueue is not empty
+    (Value)PID: To hold the processes PID
     '''
     assert isinstance(W, float), 'W must be an float'
     assert isinstance(T, float), 'T must be a float'
 
-    self.ACKL = Lock()
-    self.ACKCount = 0
-    self.ACKEvent = Event()
-    self.ACKCountMax = 0 #should be equal to len(outputList)
+    self.ACKCount = ACKCount
+    self.ACKEvent = ACKEvent
+    self.ACKCountMax = ACKMax #This needs to be set to len(outputList)
 
-    self.dataQueue = Queue()
-    self.queueEvent = Event()
+    self.dataQueue = dataQueue
+    self.queueEvent = queueEvent
 
     self.outputList = []
     self.inputList = []
-
+    
     self.W = W
     self.T = T
 
-    self.active = False
+    self.PID = PID
     return
+
+  #----------------------------------------------------------------------------
+#  def __trunc__(self):
+#    return os.getpid()
 
   #----------------------------------------------------------------------------
   def activate(self):
@@ -37,24 +51,7 @@ class Link():
     else in the class just access data.  Call this function when
     everything is connected and finalized.
     '''
-    self.ackCountMax = len(self.outputList)
-    self.queueEvent.clear()
-    self.ACKEvent.clear()
-    self.active = True
-    while True:
-      self.queueEvent.wait() #Wait until the queue has data
-      x, R = self.dataQueue.get() #Get data from the queue
-      R.ACK(self) #send an ACK to the resource that sent the data
-      xp = self.W*x + self.T #Apply the affine transform
-      assert self.ACKCount == 0, 'ACKCount is not 0 prior to outputting!'
-      for r in self.outputList: #Send this value to each connected resource
-        r.push(xp, self) 
-      self.ACKEvent.wait() #Wait for all ACKs
-      self.ACKCount = 0 #Reset the ACK count
-      self.ACKEvent.clear()
-      if self.dataQueue.empty():
-        #This will probably only happen when the NN is totally idle
-        self.queueEvent.clear()
+    self.PID.value = os.getpid()
     return
 
   #----------------------------------------------------------------------------
@@ -64,8 +61,6 @@ class Link():
     checking for programmer errors, it isn't necessary.  I may remove this
     method in the future.
     '''
-    if not isinstance(R, (Link, Activator)):
-      raise TypeError('R must be a Link or an Activator')
     self.outputList.append(R)
     return
 
@@ -76,8 +71,6 @@ class Link():
     checking for programmer errors, it isn't necessary.  I may remove this
     method in the future.
     '''
-    if not isinstance(R, (Link, Activator)):
-      raise TypeError('R must be a Link or an Activator')
     self.inputList.append(R)
     return
 
@@ -87,11 +80,6 @@ class Link():
     The resource R pushes the value x to the Queue.  If R is not in the
     inputList, it is an error.
     '''
-    if R not in self.inputList:
-      raise RuntimeError('Received task from unconnected resource')
-    else:
-      self.dataQueue.put((x, R)) #Package into a tuple and put to Queu
-      self.queueEvent.set() #Set the queue event
     return
 
   #----------------------------------------------------------------------------
@@ -100,15 +88,48 @@ class Link():
     The resource R sends an acknowledgement to this Link.  If R is not in the
     outputList, it is an error.
     '''
-    if R not in self.outputList:
-      raise RuntimeError('Received ACK from unconnected resource')
-    else:
-      self.ACKL.acquire() #We need a lock because += 1 is not atomic
-      self.ACKCount += 1
-      self.ACKL.release()
-      if self.ACKCount == self.ACKCountMax:
-        self.ACKEvent.set() #Set the ACK event if all ACKs have been received
     return
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #------------------------------------------------------------------------------
 class Activator():

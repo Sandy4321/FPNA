@@ -1,5 +1,5 @@
 #Parallel FPNA implementation
-from tissueP import Link, Activator, InputNode
+from tissueP import Link, Activator, InputNode, OutputNode
 from multiprocessing import Process, Queue, Lock, Event, Value
 import time, math
 
@@ -20,6 +20,7 @@ class Brain():
     self.E = []
     self.IDCount = 1
 
+    self.dataQueue = Queue()
     self.ACKCount = Value('I', 0)
     self.ACKEvent = Event()
     self.ACKMax = Value('I', 0)
@@ -89,17 +90,27 @@ class Brain():
     self.IDCount += 1
     
     newInput = InputNode(ACKCount, ACKEvent, ACKMax, dataQueue,
-                         ID, brainACKCount, brainACKEvent, brainACKMax,
-                         n)
+                         ID, brainACKCount, brainACKEvent, brainACKMax, n)
     self.ACKMax.value += n
     self.inputList.append(newInput)
     return newInput
 
   #----------------------------------------------------------------------------
-  def addOutputNode(self):
+  def createOutputNode(self, i, f, theta, iterateMax):
     '''
     '''
-    return
+    ACKEvent = Event()
+    dataQueue = Queue()
+    ID = self.IDCount
+    self.IDCount += 1
+    outputIndex = len(self.outputList)
+    
+    newOutput = OutputNode(i, f, ACKEvent, dataQueue,
+                           ID, iterateMax, theta, outputIndex, self.dataQueue)
+                             
+    self.outputList.append(newOutput)
+
+    return newOutput
 
   #----------------------------------------------------------------------------
   def createConnection(self, R1, R2):
@@ -126,7 +137,11 @@ class Brain():
       self.inputList[i].dataQueue.put(X[i])
     self.ACKEvent.wait()
     print 'Brain received all ACKs'
-    return
+    y = [None]*len(self.outputList) #Output vector
+    while None in y:
+      y0, i = self.dataQueue.get()
+      y[i] = y0
+    return y
 
 
 def i(x, xp):
@@ -142,24 +157,42 @@ def f(x):
 B = Brain()
 
 L1 = B.createLink(1.0, 0.0)
+L2 = B.createLink(1.0, 0.0)
+L3 = B.createLink(1.0, 0.0)
 
 A1 = B.createActivator(i, f, 1, 0.0)
 
-I1 = B.createInputNode(2)
-I2 = B.createInputNode(3)
+I1 = B.createInputNode(1)
+#I2 = B.createInputNode(3)
+
+O1 = B.createOutputNode(i, f, 0.0, 1)
+O2 = B.createOutputNode(i, f, 0.0, 1)
 
 B.createConnection(L1, A1)
 B.createConnection(I1, L1)
-B.createConnection(I2, L1)
+#B.createConnection(I2, L1)
+B.createConnection(A1, L2)
+B.createConnection(L2, O1)
+B.createConnection(A1, L3)
+B.createConnection(L3, O2)
 
 P1 = Process(target = L1.activate)
 P2 = Process(target = A1.activate)
 P3 = Process(target = I1.activate)
-P4 = Process(target = I2.activate)
+#P4 = Process(target = I2.activate)
+P5 = Process(target = O1.activate)
+P6 = Process(target = L2.activate)
+P7 = Process(target = L3.activate)
+P8 = Process(target = O2.activate)
 
 P1.start()
 P2.start()
 P3.start()
-P4.start()
+#P4.start()
+P5.start()
+P6.start()
+P7.start()
+P8.start()
 
-B.activate([(1,1,1), (1,1)])
+y = B.activate([(1,)])
+print 'Output: ' + str(y)

@@ -58,8 +58,7 @@ class Link():
     while True:
       x, ID = self.dataQueue.get()
       print '%s Got queue data (%f, %d)' %(self.name, x, ID)
-      if ID != 0:
-        self.ACK(ID)
+      self.ACK(ID)
       xp = self.W*x + self.T
       assert self.ACKCount.value == 0, 'ACKCount not 0 prior to outputting'
       for ID in self.outputList:
@@ -75,11 +74,7 @@ class Link():
     '''
     Simply appends the resource R to the outputList.
     '''
-    self.outputList[R.ID] = {'ACKCount': R.ACKCount,
-                             'ACKEvent': R.ACKEvent,
-                             'ACKMax': R.ACKMax,
-                             'dataQueue': R.dataQueue
-                             }
+    self.outputList[R.ID] = {'dataQueue': R.dataQueue}
     return
 
   #----------------------------------------------------------------------------
@@ -90,7 +85,6 @@ class Link():
     self.inputList[R.ID] = {'ACKCount': R.ACKCount,
                             'ACKEvent': R.ACKEvent,
                             'ACKMax': R.ACKMax,
-                            'dataQueue': R.dataQueue,
                             }
     return
 
@@ -180,17 +174,16 @@ class Activator():
     while True:
       x, ID = self.dataQueue.get()
       print '%s Got queue data (%f, %d)' %(self.name, x, ID)
-      if ID != 0:
-        self.ACK(ID)
+      self.ACK(ID)
       self.x = self.i(self.x, x)
       self.iterateCount += 1
       if self.iterateCount == self.iterateMax:
-        xp = self.f(x)
+        xp = self.f(self.x)
         self.iterateCount = 0
         self.x = self.theta
         assert self.ACKCount.value == 0, 'ACKCount not 0 prior to outputting'
-        print '%s outputting %f' %(self.name, xp)
         for ID in self.outputList:
+          print '%s pushing %f to ID %d' %(self.name, xp, ID)
           self.push(xp, ID)
         if self.ACKMax.value > 0:
           self.ACKEvent.wait()
@@ -204,11 +197,7 @@ class Activator():
     Simply appends the resource R to the outputList.
     '''
     assert isinstance(R, Link), 'R must be a Link'
-    self.outputList[R.ID] = {'ACKCount': R.ACKCount,
-                             'ACKEvent': R.ACKEvent,
-                             'ACKMax': R.ACKMax,
-                             'dataQueue': R.dataQueue
-                             }
+    self.outputList[R.ID] = {'dataQueue': R.dataQueue}
     return
 
   #----------------------------------------------------------------------------
@@ -220,7 +209,6 @@ class Activator():
     self.inputList[R.ID] = {'ACKCount': R.ACKCount,
                             'ACKEvent': R.ACKEvent,
                             'ACKMax': R.ACKMax,
-                            'dataQueue': R.dataQueue,
                             }
     return
 
@@ -307,7 +295,6 @@ class InputNode():
       X = self.dataQueue.get() #X will be a tuple of values
       print '%s Got queue data ' %self.name + str(X)
       self.ACK()
-      print str(X)
       for x in X:
         assert self.ACKCount.value == 0, 'ACKCount not 0 prior to outputting'
         print '%s outputting %f' %(self.name, x)
@@ -324,11 +311,7 @@ class InputNode():
     Simply appends the resource R to the outputList.
     '''
     assert isinstance(R, Link), 'R must be a Link'
-    self.outputList[R.ID] = {'ACKCount': R.ACKCount,
-                             'ACKEvent': R.ACKEvent,
-                             'ACKMax': R.ACKMax,
-                             'dataQueue': R.dataQueue
-                             }
+    self.outputList[R.ID] = {'dataQueue': R.dataQueue}
     return
 
   #----------------------------------------------------------------------------
@@ -354,41 +337,47 @@ class InputNode():
     return
 
 #------------------------------------------------------------------------------
-class OutpuNode():
+class OutputNode():
   '''
   The OutputNode resource.  It is connected from a Link to the Brain
   '''
   #----------------------------------------------------------------------------
-  def __init__(self, i, f, ACKEvent, dataQueue, ID, iterateMax, theta, n):
+  def __init__(self, i, f, ACKEvent, dataQueue, ID, iterateMax, theta,
+               index, brainDataQueue):
     '''
     (function)i: The iteration function
     (function)f: The activation function
     (int)ID: To identify different processes
-    (int)n: The number of outputs that will be output to the Brain
+    (int)index: The index of this output node in the Brain's list.  It is
+    returned with the value computed so the Brain can properly assemble the
+    output vector
     -> All of the following are from the multiprocessing module
     (Event)ACKEvent: An event for when ACKCount = ACKMax
     (Queue)dataQueue: A queue for data input
+    (Queue)brainDataQueue: The Brain's Queue for data
     '''
     assert hasattr(i, '__call__'), 'i must be a function'
     assert hasattr(f, '__call__'), 'f must be a function'
 
     self.ACKEvent = ACKEvent
 
-    self.brainACKCount = brainACKCount
-    self.brainACKEvent = brainACKEvent
-    self.brainACKMax = brainACKMax
-
     self.dataQueue = dataQueue
+    self.brainDataQueue = brainDataQueue
 
     self.inputList = {}
+    
+    self.i = i
+    self.f = f
 
-    self.theta = theta
+    self.index = index
     self.iterateMax = iterateMax
-
-    self.n = n
+    self.iterateCount = 0
+    self.x = theta
+    self.theta = theta
     self.PID = 0
     self.ID = ID
     self.name = 'O_' + str(self.ID)
+
     return
 
   #----------------------------------------------------------------------------
@@ -405,39 +394,54 @@ class OutpuNode():
     everything is connected and finalized.
     '''
     self.PID = os.getpid()
+    while True:
+      x, ID = self.dataQueue.get()
+      print '%s Got queue data (%f, %d)' %(self.name, x, ID)
+      self.ACK(ID)
+      self.x = self.i(self.x, x)
+      self.iterateCount += 1
+      if self.iterateCount == self.iterateMax:
+        xp = self.f(self.x)
+        self.iterateCount = 0
+        self.x = self.theta
+        print '%s outputting %f' %(self.name, xp)
+        self.push(xp)
+        self.ACKEvent.wait()
+        print '%s Got all ACK' %self.name
+        self.ACKEvent.clear()
     return
 
   #----------------------------------------------------------------------------
-  def appendOutput(self, R):
+  def appendInput(self, R):
     '''
-    Simply appends the resource R to the outputList.
+    Simply appends the resource R to the inputList.
     '''
     assert isinstance(R, Link), 'R must be a Link'
-    self.outputList[R.ID] = {'ACKCount': R.ACKCount,
-                             'ACKEvent': R.ACKEvent,
-                             'ACKMax': R.ACKMax,
-                             'dataQueue': R.dataQueue
-                             }
+    self.inputList[R.ID] = {'ACKCount': R.ACKCount,
+                            'ACKEvent': R.ACKEvent,
+                            'ACKMax': R.ACKMax,
+                            }
     return
 
   #----------------------------------------------------------------------------
-  def push(self, x, ID):
+  def push(self, x):
     '''
-    Pushes the value x to ID's dataQueue
+    Pushes the value x to the Brain
     '''
-    if not ID in self.outputList:
-      raise RuntimeError('%d is not in the outputList' %ID)
+    self.brainDataQueue.put((x, self.index))
+    return
+
+  #----------------------------------------------------------------------------
+  def ACK(self, ID):
+    '''
+    '''
+    if not ID in self.inputList:
+      raise RuntimeError('%d is not in the inputList' %ID)
     else:
-      self.outputList[ID]['dataQueue'].put((x, self.ID))
-    return
-
-  #----------------------------------------------------------------------------
-  def ACK(self):
-    '''
-    '''
-    with self.brainACKCount.get_lock():
-      self.brainACKCount.value += 1
-      if (self.brainACKCount.value == self.brainACKMax.value):
-        self.brainACKCount = 0
-        self.brainACKEvent.set()
+      with self.inputList[ID]['ACKCount'].get_lock():
+        self.inputList[ID]['ACKCount'].value += 1
+        if (self.inputList[ID]['ACKCount'].value ==
+            self.inputList[ID]['ACKMax'].value):
+          self.inputList[ID]['ACKCount'].value = 0
+          self.inputList[ID]['ACKEvent'].set()
     return

@@ -1,7 +1,7 @@
 #Parallel FPNA implementation
-from tissueP import Link
+from tissueP import Link, Activator
 from multiprocessing import Process, Queue, Lock, Event, Value
-import time
+import time, math
 
 #------------------------------------------------------------------------------
 class Brain():
@@ -15,8 +15,14 @@ class Brain():
     '''
     self.LinkList = []
     self.ActList = []
+    self.InputList = []
+    self.OutputList = []
     self.E = []
     self.IDCount = 1
+
+    self.ACKCount = Value('I', 0)
+    self.ACKEvent = Event()
+    self.ACKMax = Value('I', 0)
     return
 
   #----------------------------------------------------------------------------
@@ -30,7 +36,6 @@ class Brain():
     ACKEvent = Event()
     ACKMax = Value('I', 0)
     dataQueue = Queue()
-#    PID = Value('I', self.PIDCount)
     ID = self.IDCount
     self.IDCount += 1
 
@@ -42,9 +47,41 @@ class Brain():
     return newLink
 
   #----------------------------------------------------------------------------
-  def addInputNode(self):
+  def createActivator(self, i, f, iterateMax, theta):
     '''
     '''
+    ACKCount = Value('I', 0)
+    ACKEvent = Event()
+    ACKMax = Value('I', 0)
+    dataQueue = Queue()
+    ID = self.IDCount
+    self.IDCount += 1
+    
+    newAct = Activator(i, f, ACKCount, ACKEvent, ACKMax, dataQueue,
+                             ID, iterateMax, theta)
+                             
+    self.ActList.append(newAct)
+    return newAct
+
+  #----------------------------------------------------------------------------
+  def createInputNode(self, n):
+    '''
+    '''
+    ACKCount = Value('I', 0)
+    brainACKCount = self.ACKCount
+    ACKEvent = Event()
+    brainACKEvent = Event()
+    ACKMax = self.ACKMax
+    brainACKMax = self.ACKMax
+    dataQueue = Queue()
+    ID = self.IDCount
+    self.IDCount += 1
+    
+    newInput = InputNode(ACKCount, ACKEvent, ACKMax, dataQueue,
+                         ID, brainACKCount, brainACKEvent, brainACKMax,
+                         n)
+    self.ACKMax += n
+    self.inputList.append(newInput)
     return
 
   #----------------------------------------------------------------------------
@@ -57,35 +94,35 @@ class Brain():
   def createConnection(self, R1, R2):
     '''
     '''
+    assert not (isinstance(R1, Activator) and isinstance(R2, Activator))
     R1.appendOutput(R2)
     R1.ACKMax.value += 1
     R2.appendInput(R1)
     self.E.append((R1, R2))
     return
 
+def i(x, xp):
+  '''
+  '''
+  return x + xp
+
+def f(x):
+  '''
+  '''
+  return 1.0 / (1.0 + math.exp(-x)) #Sigmoid function
+
 B = Brain()
+
 L1 = B.createLink(1.0, 0.0)
-L2 = B.createLink(1.0, 0.0)
-L3 = B.createLink(1.0, 0.0)
-L4 = B.createLink(1.0, 0.0)
 
-P1 = Process(target=L1.activate)
-P2 = Process(target=L2.activate)
-P3 = Process(target=L3.activate)
-P4 = Process(target=L4.activate)
+A1 = B.createActivator(i, f, 1, 0.0)
 
-B.createConnection(L1, L2)
-B.createConnection(L1, L3)
-B.createConnection(L2, L4)
-B.createConnection(L2, L3)
-B.createConnection(L3, L4)
+B.createConnection(L1, A1)
+
+P1 = Process(target = L1.activate)
+P2 = Process(target = A1.activate)
 
 P1.start()
 P2.start()
-P3.start()
-P4.start()
-
-time.sleep(1)
 
 L1.dataQueue.put((1.0, 0))
-
